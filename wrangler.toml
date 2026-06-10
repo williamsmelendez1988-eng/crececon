@@ -1,0 +1,9 @@
+name = "crececon"
+compatibility_date = "2026-06-10"
+compatibility_flags = [ "nodejs_compat" ]
+
+[site]
+bucket = ".vercel/output/static"
+
+[env.production]
+node_version = "20"
