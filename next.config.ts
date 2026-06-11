@@ -1,18 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  runtime: 'edge',
-  reactStrictMode: true,
+  output: "export",
+  trailingSlash: true,
   images: {
-    domains: ['res.cloudinary.com'],
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: 'res.cloudinary.com',
-        port: '',
-        pathname: '/**',
-      },
-    ],
+    unoptimized: true,
+    remotePatterns: [{ protocol: "https", hostname: "res.cloudinary.com" }],
   },
 };
 
