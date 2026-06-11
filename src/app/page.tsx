@@ -1,170 +1,184 @@
 'use client';
-
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-// ── Navbar ──────────────────────────────────────────────────────────────────
+function SplashScreen({ onDone }: { onDone: () => void }) {
+  const [phase, setPhase] = useState(0);
+  useEffect(() => {
+    const t1 = setTimeout(() => setPhase(1), 300);
+    const t2 = setTimeout(() => setPhase(2), 900);
+    const t3 = setTimeout(() => setPhase(3), 1600);
+    const t4 = setTimeout(() => { setPhase(4); setTimeout(onDone, 600); }, 2400);
+    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
+  }, [onDone]);
+  return (
+    <div style={{
+      position:'fixed',inset:0,zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',flexDirection:'column',
+      background:'#050814',transition:'opacity 0.6s ease',opacity: phase===4?0:1,pointerEvents: phase===4?'none':'all'
+    }}>
+      <div style={{position:'absolute',inset:0,overflow:'hidden'}}>
+        <div style={{position:'absolute',top:'50%',left:'50%',transform:'translate(-50%,-50%)',width:600,height:600,borderRadius:'50%',background:'radial-gradient(circle,rgba(26,58,143,0.3) 0%,transparent 70%)',filter:'blur(60px)'}}/>
+        <div style={{position:'absolute',bottom:'20%',right:'20%',width:300,height:300,borderRadius:'50%',background:'radial-gradient(circle,rgba(34,197,94,0.15) 0%,transparent 70%)',filter:'blur(40px)'}}/>
+      </div>
+      <div style={{position:'relative',zIndex:1,textAlign:'center'}}>
+        <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:12,marginBottom:32,opacity:phase>=1?1:0,transform:phase>=1?'translateY(0)':'translateY(20px)',transition:'all 0.6s cubic-bezier(0.34,1.56,0.64,1)'}}>
+          <div style={{width:48,height:48,borderRadius:14,background:'linear-gradient(135deg,#1A3A8F,#2563EB)',display:'flex',alignItems:'center',justifyContent:'center',boxShadow:'0 8px 32px rgba(37,99,235,0.4)'}}>
+            <span style={{color:'#fff',fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:24}}>C</span>
+          </div>
+          <span style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:32,color:'#fff',letterSpacing:'-0.03em'}}>
+            Crece<span style={{color:'#22C55E'}}>Con</span>
+          </span>
+        </div>
+        <div style={{overflow:'hidden',marginBottom:16}}>
+          <div style={{opacity:phase>=2?1:0,transform:phase>=2?'translateY(0)':'translateY(100%)',transition:'all 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.1s',fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'clamp(2rem,5vw,3.5rem)',color:'#fff',letterSpacing:'-0.03em',lineHeight:1.1}}>
+            Más crecimiento.
+          </div>
+        </div>
+        <div style={{overflow:'hidden',marginBottom:16}}>
+          <div style={{opacity:phase>=2?1:0,transform:phase>=2?'translateY(0)':'translateY(100%)',transition:'all 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.25s',fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'clamp(2rem,5vw,3.5rem)',background:'linear-gradient(135deg,#60A5FA,#22C55E)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',letterSpacing:'-0.03em',lineHeight:1.1}}>
+            Más clientes.
+          </div>
+        </div>
+        <div style={{overflow:'hidden',marginBottom:40}}>
+          <div style={{opacity:phase>=2?1:0,transform:phase>=2?'translateY(0)':'translateY(100%)',transition:'all 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.4s',fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'clamp(2rem,5vw,3.5rem)',color:'rgba(255,255,255,0.5)',letterSpacing:'-0.03em',lineHeight:1.1}}>
+            Más ventas.
+          </div>
+        </div>
+        <div style={{opacity:phase>=3?1:0,transform:phase>=3?'translateY(0)':'translateY(10px)',transition:'all 0.5s ease',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+          <div style={{width:6,height:6,borderRadius:'50%',background:'#22C55E',animation:'pulse 1s ease-in-out infinite'}}/>
+          <span style={{fontFamily:'DM Sans,sans-serif',fontSize:'0.875rem',color:'rgba(255,255,255,0.4)',letterSpacing:'0.1em',textTransform:'uppercase'}}>Cargando plataforma</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-
   useEffect(() => {
     const handler = () => setScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handler);
     return () => window.removeEventListener('scroll', handler);
   }, []);
-
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
-      scrolled ? 'glass border-b border-white/5 py-3' : 'py-6'
-    }`}>
-      <div className="max-w-7xl mx-auto px-6 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#22C55E] to-[#1A3A8F] flex items-center justify-center">
-            <span className="font-syne font-black text-white text-sm">C</span>
+    <nav style={{position:'fixed',top:0,left:0,right:0,zIndex:50,transition:'all 0.5s ease',background:scrolled?'rgba(5,8,20,0.9)':'transparent',backdropFilter:scrolled?'blur(20px)':'none',borderBottom:scrolled?'1px solid rgba(255,255,255,0.05)':'none',padding:'0 24px'}}>
+      <div style={{maxWidth:1280,margin:'0 auto',height:72,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div style={{width:32,height:32,borderRadius:10,background:'linear-gradient(135deg,#1A3A8F,#2563EB)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <span style={{color:'#fff',fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:16}}>C</span>
           </div>
-          <span className="font-syne font-bold text-white text-xl">CreceCon</span>
+          <span style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:20,color:'#fff'}}>Crece<span style={{color:'#22C55E'}}>Con</span></span>
         </div>
-
-        <div className="hidden md:flex items-center gap-8">
-          {['Servicios', 'Proceso', 'Casos de Éxito', 'FAQ'].map((item) => (
-            <a key={item} href={`#${item.toLowerCase().replace(' ', '-').replace('é', 'e')}`}
-              className="text-sm text-white/60 hover:text-white transition-colors font-dm">
-              {item}
-            </a>
+        <div style={{display:'flex',alignItems:'center',gap:8}} className="hidden md:flex">
+          {['Servicios','Proceso','Casos de Éxito','FAQ'].map(item=>(
+            <a key={item} href={`#${item.toLowerCase().replace(' ','-').replace('é','e')}`} style={{color:'rgba(255,255,255,0.6)',fontSize:'0.875rem',fontWeight:500,padding:'8px 14px',borderRadius:8,transition:'color 0.2s',fontFamily:'DM Sans,sans-serif',textDecoration:'none'}}
+              onMouseEnter={e=>(e.target as HTMLAnchorElement).style.color='#fff'} onMouseLeave={e=>(e.target as HTMLAnchorElement).style.color='rgba(255,255,255,0.6)'}>{item}</a>
           ))}
         </div>
-
-        <div className="flex items-center gap-3">
-          <Link href="/login" className="hidden md:block btn-outline text-sm px-5 py-2.5 rounded-xl font-dm font-medium">
-            Iniciar sesión
-          </Link>
-          <a href="#contacto" className="btn-primary text-sm px-5 py-2.5 rounded-xl font-dm font-semibold">
-            Empezar ahora
-          </a>
-          <button className="md:hidden text-white/70" onClick={() => setMenuOpen(!menuOpen)}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              {menuOpen ? <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></> : <><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></>}
-            </svg>
-          </button>
+        <div style={{display:'flex',alignItems:'center',gap:12}}>
+          <Link href="/login" className="btn-outline hidden md:inline-flex" style={{fontSize:'0.875rem',padding:'10px 20px'}}>Iniciar sesión</Link>
+          <a href="#contacto" className="btn-primary" style={{fontSize:'0.875rem',padding:'10px 20px'}}>Empezar ahora</a>
+          <button className="md:hidden" onClick={()=>setMenuOpen(!menuOpen)} style={{color:'rgba(255,255,255,0.7)',background:'none',border:'none',cursor:'pointer',fontSize:'1.5rem'}}>{menuOpen?'✕':'☰'}</button>
         </div>
       </div>
-      {menuOpen && (
-        <div className="md:hidden glass border-t border-white/5 px-6 py-4 flex flex-col gap-4">
-          {['Servicios', 'Proceso', 'Casos de Éxito', 'FAQ'].map((item) => (
-            <a key={item} href={`#${item.toLowerCase()}`} className="text-sm text-white/70 font-dm" onClick={() => setMenuOpen(false)}>{item}</a>
+      {menuOpen&&(
+        <div style={{background:'rgba(5,8,20,0.98)',backdropFilter:'blur(20px)',borderTop:'1px solid rgba(255,255,255,0.05)',padding:'16px 24px 24px'}}>
+          {['Servicios','Proceso','Casos de Éxito','FAQ'].map(item=>(
+            <a key={item} href={`#${item.toLowerCase()}`} onClick={()=>setMenuOpen(false)} style={{display:'block',color:'rgba(255,255,255,0.7)',padding:'12px 0',borderBottom:'1px solid rgba(255,255,255,0.04)',fontFamily:'DM Sans,sans-serif',textDecoration:'none'}}>{item}</a>
           ))}
-          <Link href="/login" className="text-sm text-white/70 font-dm">Iniciar sesión</Link>
+          <Link href="/login" style={{display:'block',color:'#60A5FA',padding:'12px 0',fontFamily:'DM Sans,sans-serif',textDecoration:'none'}}>Iniciar sesión →</Link>
         </div>
       )}
     </nav>
   );
 }
 
-// ── Hero ─────────────────────────────────────────────────────────────────────
 function Hero() {
+  const [visible, setVisible] = useState(false);
+  useEffect(()=>{ const t=setTimeout(()=>setVisible(true),100); return ()=>clearTimeout(t); },[]);
   return (
-    <section className="relative min-h-screen flex items-center justify-center overflow-hidden bg-gradient-mesh grid-pattern">
-      {/* Glow orbs */}
-      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] rounded-full bg-[#22C55E]/5 blur-[120px] pointer-events-none" />
-      <div className="absolute top-1/3 left-1/4 w-[400px] h-[400px] rounded-full bg-[#1A3A8F]/10 blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-1/4 right-1/4 w-[300px] h-[300px] rounded-full bg-[#22C55E]/8 blur-[80px] pointer-events-none" />
-
-      <div className="relative z-10 max-w-5xl mx-auto px-6 text-center">
-        {/* Badge */}
-        <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-2 mb-8 animate-fade-up">
-          <span className="w-2 h-2 rounded-full bg-[#22C55E] animate-pulse" />
-          <span className="text-xs font-dm text-white/60 uppercase tracking-widest">Sistema de Crecimiento Digital</span>
+    <section style={{minHeight:'100vh',display:'flex',alignItems:'center',justifyContent:'center',position:'relative',overflow:'hidden',paddingTop:120,paddingBottom:80}} className="bg-gradient-mesh grid-pattern">
+      <div style={{position:'absolute',inset:0,pointerEvents:'none'}}>
+        <div style={{position:'absolute',top:'15%',left:'50%',transform:'translateX(-50%)',width:700,height:500,borderRadius:'50%',background:'radial-gradient(ellipse,rgba(26,58,143,0.2) 0%,transparent 70%)',filter:'blur(60px)'}}/>
+        <div style={{position:'absolute',bottom:'10%',right:'10%',width:400,height:300,borderRadius:'50%',background:'radial-gradient(ellipse,rgba(34,197,94,0.1) 0%,transparent 70%)',filter:'blur(50px)'}}/>
+      </div>
+      <div style={{maxWidth:900,margin:'0 auto',padding:'0 24px',textAlign:'center',position:'relative',zIndex:1}}>
+        <div style={{opacity:visible?1:0,transform:visible?'translateY(0)':'translateY(20px)',transition:'all 0.6s ease',display:'inline-flex',alignItems:'center',gap:8,background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:9999,padding:'6px 16px',marginBottom:32}}>
+          <span style={{width:6,height:6,borderRadius:'50%',background:'#22C55E',display:'inline-block'}}/>
+          <span style={{fontFamily:'DM Sans,sans-serif',fontSize:'0.75rem',color:'rgba(255,255,255,0.6)',letterSpacing:'0.1em',textTransform:'uppercase'}}>Sistema de Crecimiento Digital</span>
         </div>
-
-        {/* Headline */}
-        <h1 className="font-syne font-black text-5xl md:text-7xl lg:text-8xl leading-[0.95] mb-6 animate-fade-up delay-100">
-          <span className="gradient-text-white">Construimos sistemas</span>
-          <br />
-          <span className="gradient-text">digitales que consiguen</span>
-          <br />
-          <span className="gradient-text-white">clientes mientras duermes.</span>
-        </h1>
-
-        {/* Subheadline */}
-        <p className="font-dm text-white/50 text-lg md:text-xl max-w-2xl mx-auto mb-10 animate-fade-up delay-200 leading-relaxed">
-          Más crecimiento, más clientes, más ventas. Transformamos tu negocio en un sistema digital medible y escalable que trabaja 24/7 por ti.
+        <div style={{overflow:'hidden',marginBottom:8}}>
+          <h1 style={{opacity:visible?1:0,transform:visible?'translateY(0)':'translateY(60px)',transition:'all 0.8s cubic-bezier(0.34,1.56,0.64,1) 0.1s',fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'clamp(2.8rem,6vw,5.5rem)',lineHeight:1.05,letterSpacing:'-0.03em',color:'#fff',margin:0}}>
+            Construimos sistemas
+          </h1>
+        </div>
+        <div style={{overflow:'hidden',marginBottom:8}}>
+          <h1 style={{opacity:visible?1:0,transform:visible?'translateY(0)':'translateY(60px)',transition:'all 0.8s cubic-bezier(0.34,1.56,0.64,1) 0.25s',fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'clamp(2.8rem,6vw,5.5rem)',lineHeight:1.05,letterSpacing:'-0.03em',background:'linear-gradient(135deg,#60A5FA,#22C55E)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',margin:0}}>
+            digitales que consiguen
+          </h1>
+        </div>
+        <div style={{overflow:'hidden',marginBottom:32}}>
+          <h1 style={{opacity:visible?1:0,transform:visible?'translateY(0)':'translateY(60px)',transition:'all 0.8s cubic-bezier(0.34,1.56,0.64,1) 0.4s',fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'clamp(2.8rem,6vw,5.5rem)',lineHeight:1.05,letterSpacing:'-0.03em',color:'rgba(255,255,255,0.5)',margin:0}}>
+            clientes mientras duermes.
+          </h1>
+        </div>
+        <p style={{opacity:visible?1:0,transform:visible?'translateY(0)':'translateY(20px)',transition:'all 0.6s ease 0.5s',fontFamily:'DM Sans,sans-serif',color:'rgba(255,255,255,0.5)',fontSize:'clamp(1rem,2vw,1.2rem)',maxWidth:560,margin:'0 auto 40px',lineHeight:1.7}}>
+          Más crecimiento, más clientes, más ventas. Tu negocio en un sistema digital medible que trabaja 24/7 por ti.
         </p>
-
-        {/* CTA Buttons */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-fade-up delay-300">
-          <a href={`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP?.replace('+','')}`} target="_blank" rel="noopener noreferrer"
-            className="btn-primary px-8 py-4 rounded-2xl font-syne font-bold text-base flex items-center gap-3 glow-green-sm">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.137.564 4.14 1.543 5.873L0 24l6.324-1.524A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-1.885 0-3.652-.49-5.187-1.348l-.371-.22-3.754.904.935-3.647-.242-.382A9.944 9.944 0 012 12C2 6.486 6.486 2 12 2s10 4.486 10 10-4.486 10-10 10z"/></svg>
-            Agendar llamada
+        <div style={{opacity:visible?1:0,transform:visible?'translateY(0)':'translateY(20px)',transition:'all 0.6s ease 0.6s',display:'flex',gap:16,justifyContent:'center',flexWrap:'wrap'}}>
+          <a href={`https://wa.me/584128021091`} target="_blank" rel="noopener noreferrer" className="btn-primary glow-green-sm" style={{padding:'14px 32px',fontSize:'1rem'}}>
+            💬 Agendar llamada
           </a>
-          <a href="#contacto"
-            className="btn-outline px-8 py-4 rounded-2xl font-syne font-bold text-base flex items-center gap-3">
-            Solicitar propuesta
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M5 12h14M12 5l7 7-7 7"/>
-            </svg>
+          <a href="#contacto" className="btn-outline" style={{padding:'14px 32px',fontSize:'1rem'}}>
+            Solicitar propuesta →
           </a>
         </div>
-
-        {/* Stats */}
-        <div className="mt-20 grid grid-cols-3 gap-8 max-w-lg mx-auto animate-fade-up delay-400">
-          {[
-            { num: '100+', label: 'Clientes activos' },
-            { num: '3x', label: 'Promedio de crecimiento' },
-            { num: '24/7', label: 'Sistemas activos' },
-          ].map((stat) => (
-            <div key={stat.label} className="text-center">
-              <div className="font-syne font-black text-2xl gradient-text">{stat.num}</div>
-              <div className="text-xs font-dm text-white/40 mt-1">{stat.label}</div>
+        <div style={{opacity:visible?1:0,transition:'opacity 0.6s ease 0.8s',marginTop:64,display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:24,maxWidth:480,marginLeft:'auto',marginRight:'auto'}}>
+          {[{num:'100+',label:'Clientes activos'},{num:'3x',label:'Crecimiento promedio'},{num:'24/7',label:'Sistemas activos'}].map(s=>(
+            <div key={s.label} style={{textAlign:'center'}}>
+              <div style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'1.75rem',background:'linear-gradient(135deg,#60A5FA,#22C55E)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>{s.num}</div>
+              <div style={{fontFamily:'DM Sans,sans-serif',fontSize:'0.8rem',color:'rgba(255,255,255,0.4)',marginTop:4}}>{s.label}</div>
             </div>
           ))}
         </div>
-      </div>
-
-      {/* Scroll indicator */}
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-float">
-        <span className="text-xs font-dm text-white/30 tracking-widest uppercase">Scroll</span>
-        <div className="w-px h-8 bg-gradient-to-b from-white/20 to-transparent" />
       </div>
     </section>
   );
 }
 
-// ── Services ─────────────────────────────────────────────────────────────────
 const services = [
-  { icon: '🌐', title: 'Desarrollo Web Premium', desc: 'Sitios web de alto rendimiento, veloces y optimizados que convierten visitantes en clientes.' },
-  { icon: '📱', title: 'Aplicaciones PWA', desc: 'Apps progresivas que funcionan como nativas en cualquier dispositivo sin costos de App Store.' },
-  { icon: '🔍', title: 'SEO Avanzado', desc: 'Estrategias de posicionamiento que llevan tu negocio a la primera página de Google.' },
-  { icon: '📣', title: 'Meta Ads', desc: 'Campañas de Facebook e Instagram con segmentación precisa para maximizar tu ROI.' },
-  { icon: '🎯', title: 'Google Ads', desc: 'Anuncios de búsqueda y display que capturan clientes en el momento exacto de compra.' },
-  { icon: '⚡', title: 'Automatización', desc: 'Sistemas que trabajan solos: emails, seguimientos, reportes y procesos automatizados.' },
-  { icon: '🤖', title: 'Bots de WhatsApp', desc: 'Atención al cliente 24/7 con bots inteligentes que califican y convierten leads.' },
-  { icon: '✨', title: 'Branding Digital', desc: 'Identidad visual premium que diferencia tu marca y genera confianza instantánea.' },
+  {icon:'🌐',title:'Desarrollo Web Premium',desc:'Sitios de alto rendimiento que convierten visitantes en clientes.'},
+  {icon:'📱',title:'Aplicaciones PWA',desc:'Apps progresivas que funcionan como nativas sin costos de App Store.'},
+  {icon:'🔍',title:'SEO Avanzado',desc:'Posicionamiento que lleva tu negocio a la primera página de Google.'},
+  {icon:'📣',title:'Meta Ads',desc:'Campañas de Facebook e Instagram con segmentación precisa.'},
+  {icon:'🎯',title:'Google Ads',desc:'Anuncios que capturan clientes en el momento exacto de compra.'},
+  {icon:'⚡',title:'Automatización',desc:'Sistemas que trabajan solos: emails, seguimientos y procesos.'},
+  {icon:'🤖',title:'Bots de WhatsApp',desc:'Atención al cliente 24/7 que califica y convierte leads.'},
+  {icon:'✨',title:'Branding Digital',desc:'Identidad visual premium que genera confianza instantánea.'},
 ];
 
 function Services() {
   return (
-    <section id="servicios" className="py-32 px-6 relative">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-2 mb-6">
-            <span className="text-xs font-dm text-[#22C55E] uppercase tracking-widest">Nuestros servicios</span>
+    <section id="servicios" style={{padding:'100px 24px'}}>
+      <div style={{maxWidth:1280,margin:'0 auto'}}>
+        <div style={{textAlign:'center',marginBottom:64}}>
+          <div style={{display:'inline-flex',alignItems:'center',gap:8,background:'rgba(34,197,94,0.1)',border:'1px solid rgba(34,197,94,0.2)',borderRadius:9999,padding:'6px 16px',marginBottom:20}}>
+            <span style={{fontFamily:'DM Sans,sans-serif',fontSize:'0.75rem',color:'#22C55E',letterSpacing:'0.1em',textTransform:'uppercase'}}>Nuestros servicios</span>
           </div>
-          <h2 className="font-syne font-black text-4xl md:text-6xl gradient-text-white mb-4">
-            Todo lo que tu negocio<br />necesita para crecer
+          <h2 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'clamp(2rem,4vw,3rem)',color:'#fff',letterSpacing:'-0.02em',marginBottom:16}}>
+            Todo lo que tu negocio<br/>necesita para crecer
           </h2>
-          <p className="font-dm text-white/50 text-lg max-w-xl mx-auto">
-            Un ecosistema completo de soluciones digitales diseñado para convertir y escalar.
+          <p style={{fontFamily:'DM Sans,sans-serif',color:'rgba(255,255,255,0.5)',fontSize:'1.1rem',maxWidth:520,margin:'0 auto'}}>
+            Un ecosistema completo de soluciones digitales para convertir y escalar.
           </p>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {services.map((s, i) => (
-            <div key={s.title} className="card glass-hover group cursor-pointer" style={{ animationDelay: `${i * 0.05}s` }}>
-              <div className="text-3xl mb-4">{s.icon}</div>
-              <h3 className="font-syne font-bold text-white text-base mb-2 group-hover:text-[#22C55E] transition-colors">{s.title}</h3>
-              <p className="font-dm text-white/40 text-sm leading-relaxed">{s.desc}</p>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:20}}>
+          {services.map((s,i)=>(
+            <div key={s.title} className="card glass-hover" style={{animationDelay:`${i*0.05}s`}}>
+              <div style={{fontSize:'2rem',marginBottom:16}}>{s.icon}</div>
+              <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:700,color:'#fff',fontSize:'1rem',marginBottom:8}}>{s.title}</h3>
+              <p style={{fontFamily:'DM Sans,sans-serif',color:'rgba(255,255,255,0.45)',fontSize:'0.875rem',lineHeight:1.6,margin:0}}>{s.desc}</p>
             </div>
           ))}
         </div>
@@ -173,41 +187,33 @@ function Services() {
   );
 }
 
-// ── Process ───────────────────────────────────────────────────────────────────
 const steps = [
-  { num: '01', title: 'Pago', desc: 'Confirmas tu inversión y accedes al sistema.' },
-  { num: '02', title: 'Onboarding', desc: 'Completamos tu perfil empresarial completo.' },
-  { num: '03', title: 'Diseño', desc: 'Creamos la identidad visual de tu proyecto.' },
-  { num: '04', title: 'Desarrollo', desc: 'Construimos tu solución digital.' },
-  { num: '05', title: 'Lanzamiento', desc: 'Publicamos y activamos tu sistema.' },
-  { num: '06', title: 'Escalamiento', desc: 'Optimizamos y hacemos crecer los resultados.' },
+  {num:'01',title:'Pago',desc:'Confirmas tu inversión y accedes al sistema.'},
+  {num:'02',title:'Onboarding',desc:'Completamos tu perfil empresarial completo.'},
+  {num:'03',title:'Diseño',desc:'Creamos la identidad visual de tu proyecto.'},
+  {num:'04',title:'Desarrollo',desc:'Construimos tu solución digital.'},
+  {num:'05',title:'Lanzamiento',desc:'Publicamos y activamos tu sistema.'},
+  {num:'06',title:'Escalamiento',desc:'Optimizamos y hacemos crecer los resultados.'},
 ];
 
 function Process() {
   return (
-    <section id="proceso" className="py-32 px-6 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-mesh opacity-50" />
-      <div className="max-w-7xl mx-auto relative z-10">
-        <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-2 mb-6">
-            <span className="text-xs font-dm text-[#22C55E] uppercase tracking-widest">Cómo trabajamos</span>
+    <section id="proceso" style={{padding:'100px 24px',background:'rgba(255,255,255,0.01)'}}>
+      <div style={{maxWidth:1280,margin:'0 auto'}}>
+        <div style={{textAlign:'center',marginBottom:64}}>
+          <div style={{display:'inline-flex',alignItems:'center',gap:8,background:'rgba(37,99,235,0.1)',border:'1px solid rgba(37,99,235,0.2)',borderRadius:9999,padding:'6px 16px',marginBottom:20}}>
+            <span style={{fontFamily:'DM Sans,sans-serif',fontSize:'0.75rem',color:'#60A5FA',letterSpacing:'0.1em',textTransform:'uppercase'}}>Cómo trabajamos</span>
           </div>
-          <h2 className="font-syne font-black text-4xl md:text-6xl gradient-text-white mb-4">
-            Proceso simple.<br />Resultados extraordinarios.
+          <h2 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'clamp(2rem,4vw,3rem)',color:'#fff',letterSpacing:'-0.02em'}}>
+            Proceso simple.<br/>Resultados extraordinarios.
           </h2>
         </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {steps.map((step, i) => (
-            <div key={step.num} className="relative">
-              {i < steps.length - 1 && (
-                <div className="hidden lg:block absolute top-8 left-full w-full h-px bg-gradient-to-r from-white/10 to-transparent z-0" />
-              )}
-              <div className="card glass-hover text-center relative z-10">
-                <div className="font-syne font-black text-4xl gradient-text mb-3">{step.num}</div>
-                <h3 className="font-syne font-bold text-white text-sm mb-2">{step.title}</h3>
-                <p className="font-dm text-white/40 text-xs leading-relaxed">{step.desc}</p>
-              </div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(180px,1fr))',gap:16}}>
+          {steps.map(step=>(
+            <div key={step.num} className="card glass-hover" style={{textAlign:'center',position:'relative'}}>
+              <div style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'2.5rem',background:'linear-gradient(135deg,#60A5FA,#22C55E)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',marginBottom:12}}>{step.num}</div>
+              <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:700,color:'#fff',fontSize:'0.95rem',marginBottom:8}}>{step.title}</h3>
+              <p style={{fontFamily:'DM Sans,sans-serif',color:'rgba(255,255,255,0.4)',fontSize:'0.8rem',lineHeight:1.6,margin:0}}>{step.desc}</p>
             </div>
           ))}
         </div>
@@ -216,34 +222,32 @@ function Process() {
   );
 }
 
-// ── Cases ─────────────────────────────────────────────────────────────────────
 const cases = [
-  { empresa: 'Barbershop Walla\'s', tipo: 'Desarrollo Web + PWA', resultado: '+340% reservas online', tag: 'Barbería' },
-  { empresa: 'Clínica Dental Plus', tipo: 'SEO + Google Ads', resultado: '+250% pacientes nuevos', tag: 'Salud' },
-  { empresa: 'Tienda ModaVip', tipo: 'E-commerce + Meta Ads', resultado: '+180% ventas mensuales', tag: 'Retail' },
+  {empresa:"Barbershop Walla's",tipo:'Desarrollo Web + PWA',resultado:'+340% reservas online',tag:'Barbería'},
+  {empresa:'Clínica Dental Plus',tipo:'SEO + Google Ads',resultado:'+250% pacientes nuevos',tag:'Salud'},
+  {empresa:'Tienda ModaVip',tipo:'E-commerce + Meta Ads',resultado:'+180% ventas mensuales',tag:'Retail'},
 ];
 
 function Cases() {
   return (
-    <section id="casos-de-exito" className="py-32 px-6">
-      <div className="max-w-7xl mx-auto">
-        <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-2 mb-6">
-            <span className="text-xs font-dm text-[#22C55E] uppercase tracking-widest">Resultados reales</span>
+    <section id="casos-de-exito" style={{padding:'100px 24px'}}>
+      <div style={{maxWidth:1280,margin:'0 auto'}}>
+        <div style={{textAlign:'center',marginBottom:64}}>
+          <div style={{display:'inline-flex',alignItems:'center',gap:8,background:'rgba(168,85,247,0.1)',border:'1px solid rgba(168,85,247,0.2)',borderRadius:9999,padding:'6px 16px',marginBottom:20}}>
+            <span style={{fontFamily:'DM Sans,sans-serif',fontSize:'0.75rem',color:'#C084FC',letterSpacing:'0.1em',textTransform:'uppercase'}}>Resultados reales</span>
           </div>
-          <h2 className="font-syne font-black text-4xl md:text-6xl gradient-text-white mb-4">
-            Negocios que ya<br />están creciendo
+          <h2 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'clamp(2rem,4vw,3rem)',color:'#fff',letterSpacing:'-0.02em'}}>
+            Negocios que ya<br/>están creciendo
           </h2>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {cases.map((c) => (
-            <div key={c.empresa} className="card glass-hover group relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#22C55E]/50 to-transparent" />
-              <span className="badge badge-green mb-4 inline-block">{c.tag}</span>
-              <h3 className="font-syne font-bold text-white text-xl mb-2">{c.empresa}</h3>
-              <p className="font-dm text-white/40 text-sm mb-4">{c.tipo}</p>
-              <div className="font-syne font-black text-2xl gradient-text">{c.resultado}</div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(280px,1fr))',gap:24}}>
+          {cases.map(c=>(
+            <div key={c.empresa} className="card glass-hover" style={{position:'relative',overflow:'hidden'}}>
+              <div style={{position:'absolute',top:0,left:0,right:0,height:2,background:'linear-gradient(90deg,transparent,rgba(34,197,94,0.5),transparent)'}}/>
+              <span className="badge-green" style={{display:'inline-flex',marginBottom:16,fontSize:'0.75rem'}}>{c.tag}</span>
+              <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:700,color:'#fff',fontSize:'1.2rem',marginBottom:8}}>{c.empresa}</h3>
+              <p style={{fontFamily:'DM Sans,sans-serif',color:'rgba(255,255,255,0.4)',fontSize:'0.875rem',marginBottom:16}}>{c.tipo}</p>
+              <div style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'1.75rem',background:'linear-gradient(135deg,#60A5FA,#22C55E)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>{c.resultado}</div>
             </div>
           ))}
         </div>
@@ -252,47 +256,33 @@ function Cases() {
   );
 }
 
-// ── FAQ ───────────────────────────────────────────────────────────────────────
 const faqs = [
-  { q: '¿Cuánto tiempo tarda en desarrollarse mi proyecto?', a: 'Depende del alcance. Un sitio web premium tarda 2-3 semanas. Una PWA completa entre 4-8 semanas. Te damos un cronograma detallado en la propuesta.' },
-  { q: '¿Cómo puedo ver el avance de mi proyecto?', a: 'Tendrás acceso a tu panel personalizado donde verás el progreso en tiempo real, podrás aprobar diseños y comunicarte directamente con tu equipo.' },
-  { q: '¿Trabajan con clientes de cualquier país?', a: 'Sí, operamos 100% en digital y trabajamos con clientes de toda Latinoamérica, España y Estados Unidos.' },
-  { q: '¿Qué incluye el sistema de crecimiento?', a: 'Es un ecosistema completo: web, automatizaciones, campañas, métricas y soporte continuo. No es solo un desarrollo, es un sistema que convierte de forma medible.' },
-  { q: '¿Hay precios fijos?', a: 'Cada proyecto es a medida. Analizamos tu negocio y te enviamos una propuesta personalizada con el mejor plan para tus objetivos y presupuesto.' },
+  {q:'¿Cuánto tiempo tarda en desarrollarse mi proyecto?',a:'Depende del alcance. Un sitio web premium tarda 2-3 semanas. Una PWA completa entre 4-8 semanas.'},
+  {q:'¿Cómo puedo ver el avance de mi proyecto?',a:'Tendrás acceso a tu panel personalizado donde verás el progreso en tiempo real y podrás comunicarte con tu equipo.'},
+  {q:'¿Trabajan con clientes de cualquier país?',a:'Sí, operamos 100% digital con clientes de toda Latinoamérica, España y Estados Unidos.'},
+  {q:'¿Qué incluye el sistema de crecimiento?',a:'Web, automatizaciones, campañas, métricas y soporte continuo. Un sistema completo que convierte de forma medible.'},
+  {q:'¿Hay precios fijos?',a:'Cada proyecto es a medida. Analizamos tu negocio y enviamos una propuesta personalizada.'},
 ];
 
 function FAQ() {
-  const [open, setOpen] = useState<number | null>(null);
-
+  const [open,setOpen]=useState<number|null>(null);
   return (
-    <section id="faq" className="py-32 px-6">
-      <div className="max-w-3xl mx-auto">
-        <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-2 mb-6">
-            <span className="text-xs font-dm text-[#22C55E] uppercase tracking-widest">Preguntas frecuentes</span>
+    <section id="faq" style={{padding:'100px 24px',background:'rgba(255,255,255,0.01)'}}>
+      <div style={{maxWidth:720,margin:'0 auto'}}>
+        <div style={{textAlign:'center',marginBottom:64}}>
+          <div style={{display:'inline-flex',alignItems:'center',gap:8,background:'rgba(234,179,8,0.1)',border:'1px solid rgba(234,179,8,0.2)',borderRadius:9999,padding:'6px 16px',marginBottom:20}}>
+            <span style={{fontFamily:'DM Sans,sans-serif',fontSize:'0.75rem',color:'#FDE047',letterSpacing:'0.1em',textTransform:'uppercase'}}>Preguntas frecuentes</span>
           </div>
-          <h2 className="font-syne font-black text-4xl md:text-5xl gradient-text-white">
-            Todo lo que necesitas saber
-          </h2>
+          <h2 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'clamp(2rem,4vw,3rem)',color:'#fff',letterSpacing:'-0.02em'}}>Todo lo que necesitas saber</h2>
         </div>
-
-        <div className="space-y-3">
-          {faqs.map((faq, i) => (
-            <div key={i} className={`card glass-hover cursor-pointer transition-all duration-300 ${open === i ? 'border-[#22C55E]/30' : ''}`}
-              onClick={() => setOpen(open === i ? null : i)}>
-              <div className="flex items-center justify-between gap-4">
-                <h3 className="font-syne font-semibold text-white text-sm">{faq.q}</h3>
-                <div className={`w-5 h-5 rounded-full border border-white/20 flex items-center justify-center flex-shrink-0 transition-all duration-300 ${open === i ? 'bg-[#22C55E] border-[#22C55E] rotate-45' : ''}`}>
-                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                    <path d="M12 5v14M5 12h14"/>
-                  </svg>
-                </div>
+        <div style={{display:'flex',flexDirection:'column',gap:12}}>
+          {faqs.map((faq,i)=>(
+            <div key={i} className="card" style={{cursor:'pointer',borderColor:open===i?'rgba(37,99,235,0.4)':'rgba(255,255,255,0.08)',transition:'border-color 0.2s'}} onClick={()=>setOpen(open===i?null:i)}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:16}}>
+                <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:600,color:'#fff',fontSize:'0.95rem',margin:0}}>{faq.q}</h3>
+                <span style={{flexShrink:0,width:24,height:24,borderRadius:'50%',border:'1px solid rgba(255,255,255,0.15)',display:'flex',alignItems:'center',justifyContent:'center',color:'rgba(255,255,255,0.5)',fontSize:'1.1rem',transition:'transform 0.2s,background 0.2s',transform:open===i?'rotate(45deg)':'none',background:open===i?'#22C55E':'transparent'}}>+</span>
               </div>
-              {open === i && (
-                <p className="font-dm text-white/50 text-sm mt-4 leading-relaxed border-t border-white/5 pt-4">
-                  {faq.a}
-                </p>
-              )}
+              {open===i&&<p style={{fontFamily:'DM Sans,sans-serif',color:'rgba(255,255,255,0.5)',fontSize:'0.875rem',marginTop:16,paddingTop:16,borderTop:'1px solid rgba(255,255,255,0.05)',lineHeight:1.7,margin:'16px 0 0'}}>{faq.a}</p>}
             </div>
           ))}
         </div>
@@ -301,140 +291,111 @@ function FAQ() {
   );
 }
 
-// ── Contact Form ──────────────────────────────────────────────────────────────
 function ContactForm() {
-  const [form, setForm] = useState({ nombre: '', email: '', whatsapp: '', empresa: '', servicio: '', mensaje: '' });
-  const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSending(true);
-    // Save to Firestore
+  const [form,setForm]=useState({nombre:'',email:'',whatsapp:'',empresa:'',servicio:'',mensaje:''});
+  const [sending,setSending]=useState(false);
+  const [sent,setSent]=useState(false);
+  const handleSubmit=async(e:React.FormEvent)=>{
+    e.preventDefault();setSending(true);
     try {
-      const { db } = await import('@/lib/firebase');
-      const { collection, addDoc, serverTimestamp } = await import('firebase/firestore');
-      await addDoc(collection(db, 'leads'), { ...form, estado: 'nuevo', createdAt: serverTimestamp() });
+      const {db}=await import('@/lib/firebase');
+      const {collection,addDoc,serverTimestamp}=await import('firebase/firestore');
+      await addDoc(collection(db,'leads'),{...form,estado:'nuevo',createdAt:serverTimestamp()});
       setSent(true);
-    } catch (err) {
-      console.error(err);
-    }
+    } catch(err){console.error(err);}
     setSending(false);
   };
-
-  if (sent) {
-    return (
-      <section id="contacto" className="py-32 px-6">
-        <div className="max-w-xl mx-auto text-center">
-          <div className="card glow-green">
-            <div className="text-5xl mb-4">🎉</div>
-            <h3 className="font-syne font-black text-2xl gradient-text mb-3">¡Mensaje recibido!</h3>
-            <p className="font-dm text-white/50">Te contactaremos en menos de 24 horas para agendar tu llamada estratégica.</p>
-          </div>
+  if(sent) return (
+    <section id="contacto" style={{padding:'100px 24px'}}>
+      <div style={{maxWidth:560,margin:'0 auto',textAlign:'center'}}>
+        <div className="card glow-green" style={{padding:48}}>
+          <div style={{fontSize:'3rem',marginBottom:16}}>🎉</div>
+          <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'1.5rem',background:'linear-gradient(135deg,#60A5FA,#22C55E)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text',marginBottom:12}}>¡Mensaje recibido!</h3>
+          <p style={{fontFamily:'DM Sans,sans-serif',color:'rgba(255,255,255,0.5)'}}>Te contactaremos en menos de 24 horas.</p>
         </div>
-      </section>
-    );
-  }
-
+      </div>
+    </section>
+  );
   return (
-    <section id="contacto" className="py-32 px-6 relative overflow-hidden">
-      <div className="absolute inset-0 bg-gradient-radial-green" />
-      <div className="max-w-2xl mx-auto relative z-10">
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center gap-2 glass rounded-full px-4 py-2 mb-6">
-            <span className="text-xs font-dm text-[#22C55E] uppercase tracking-widest">Comenzar ahora</span>
+    <section id="contacto" style={{padding:'100px 24px',position:'relative',overflow:'hidden'}}>
+      <div className="bg-gradient-radial-green" style={{position:'absolute',inset:0}}/>
+      <div style={{maxWidth:640,margin:'0 auto',position:'relative',zIndex:1}}>
+        <div style={{textAlign:'center',marginBottom:48}}>
+          <div style={{display:'inline-flex',alignItems:'center',gap:8,background:'rgba(34,197,94,0.1)',border:'1px solid rgba(34,197,94,0.2)',borderRadius:9999,padding:'6px 16px',marginBottom:20}}>
+            <span style={{fontFamily:'DM Sans,sans-serif',fontSize:'0.75rem',color:'#22C55E',letterSpacing:'0.1em',textTransform:'uppercase'}}>Comenzar ahora</span>
           </div>
-          <h2 className="font-syne font-black text-4xl md:text-5xl gradient-text-white mb-4">
-            Solicita tu propuesta<br />personalizada
-          </h2>
-          <p className="font-dm text-white/50">Sin compromisos. Analizamos tu negocio y te enviamos una estrategia clara.</p>
+          <h2 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'clamp(2rem,4vw,3rem)',color:'#fff',letterSpacing:'-0.02em',marginBottom:12}}>Solicita tu propuesta<br/>personalizada</h2>
+          <p style={{fontFamily:'DM Sans,sans-serif',color:'rgba(255,255,255,0.5)'}}>Sin compromisos. Analizamos tu negocio y te enviamos una estrategia clara.</p>
         </div>
-
-        <form onSubmit={handleSubmit} className="card space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-dm text-white/40 mb-2 uppercase tracking-wider">Nombre *</label>
-              <input required className="input-field" placeholder="Tu nombre completo" value={form.nombre} onChange={e => setForm({...form, nombre: e.target.value})} />
-            </div>
-            <div>
-              <label className="block text-xs font-dm text-white/40 mb-2 uppercase tracking-wider">Email *</label>
-              <input required type="email" className="input-field" placeholder="tu@email.com" value={form.email} onChange={e => setForm({...form, email: e.target.value})} />
-            </div>
+        <form onSubmit={handleSubmit} className="card" style={{display:'flex',flexDirection:'column',gap:16}}>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+            <div><label style={{display:'block',fontFamily:'DM Sans,sans-serif',fontSize:'0.75rem',color:'rgba(255,255,255,0.4)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.05em'}}>Nombre *</label><input required className="input-field" placeholder="Tu nombre completo" value={form.nombre} onChange={e=>setForm({...form,nombre:e.target.value})}/></div>
+            <div><label style={{display:'block',fontFamily:'DM Sans,sans-serif',fontSize:'0.75rem',color:'rgba(255,255,255,0.4)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.05em'}}>Email *</label><input required type="email" className="input-field" placeholder="tu@email.com" value={form.email} onChange={e=>setForm({...form,email:e.target.value})}/></div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-dm text-white/40 mb-2 uppercase tracking-wider">WhatsApp</label>
-              <input className="input-field" placeholder="+58 412 000 0000" value={form.whatsapp} onChange={e => setForm({...form, whatsapp: e.target.value})} />
-            </div>
-            <div>
-              <label className="block text-xs font-dm text-white/40 mb-2 uppercase tracking-wider">Empresa</label>
-              <input className="input-field" placeholder="Nombre de tu empresa" value={form.empresa} onChange={e => setForm({...form, empresa: e.target.value})} />
-            </div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+            <div><label style={{display:'block',fontFamily:'DM Sans,sans-serif',fontSize:'0.75rem',color:'rgba(255,255,255,0.4)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.05em'}}>WhatsApp</label><input className="input-field" placeholder="+58 412 000 0000" value={form.whatsapp} onChange={e=>setForm({...form,whatsapp:e.target.value})}/></div>
+            <div><label style={{display:'block',fontFamily:'DM Sans,sans-serif',fontSize:'0.75rem',color:'rgba(255,255,255,0.4)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.05em'}}>Empresa</label><input className="input-field" placeholder="Nombre de tu empresa" value={form.empresa} onChange={e=>setForm({...form,empresa:e.target.value})}/></div>
           </div>
-          <div>
-            <label className="block text-xs font-dm text-white/40 mb-2 uppercase tracking-wider">Servicio de interés</label>
-            <select className="input-field" value={form.servicio} onChange={e => setForm({...form, servicio: e.target.value})}>
+          <div><label style={{display:'block',fontFamily:'DM Sans,sans-serif',fontSize:'0.75rem',color:'rgba(255,255,255,0.4)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.05em'}}>Servicio de interés</label>
+            <select className="input-field" value={form.servicio} onChange={e=>setForm({...form,servicio:e.target.value})}>
               <option value="">Selecciona un servicio</option>
-              {services.map(s => <option key={s.title} value={s.title}>{s.title}</option>)}
-              <option value="Todo el sistema">Sistema de crecimiento completo</option>
+              {services.map(s=><option key={s.title} value={s.title}>{s.title}</option>)}
+              <option value="Sistema completo">Sistema de crecimiento completo</option>
             </select>
           </div>
-          <div>
-            <label className="block text-xs font-dm text-white/40 mb-2 uppercase tracking-wider">Cuéntanos sobre tu negocio</label>
-            <textarea rows={4} className="input-field resize-none" placeholder="¿Qué hace tu empresa? ¿Cuál es tu mayor reto ahora mismo?" value={form.mensaje} onChange={e => setForm({...form, mensaje: e.target.value})} />
-          </div>
-          <button type="submit" disabled={sending} className="btn-primary w-full py-4 rounded-xl font-syne font-bold text-base glow-green-sm disabled:opacity-50">
-            {sending ? 'Enviando...' : 'Enviar solicitud →'}
+          <div><label style={{display:'block',fontFamily:'DM Sans,sans-serif',fontSize:'0.75rem',color:'rgba(255,255,255,0.4)',marginBottom:8,textTransform:'uppercase',letterSpacing:'0.05em'}}>Cuéntanos sobre tu negocio</label><textarea rows={4} className="input-field" style={{resize:'none'}} placeholder="¿Qué hace tu empresa? ¿Cuál es tu mayor reto?" value={form.mensaje} onChange={e=>setForm({...form,mensaje:e.target.value})}/></div>
+          <button type="submit" disabled={sending} className="btn-primary glow-green-sm" style={{width:'100%',justifyContent:'center',padding:'14px',fontSize:'1rem',opacity:sending?0.7:1}}>
+            {sending?'Enviando...':'Enviar solicitud →'}
           </button>
-          <p className="text-center text-xs font-dm text-white/30">Respuesta garantizada en menos de 24 horas</p>
+          <p style={{textAlign:'center',fontFamily:'DM Sans,sans-serif',fontSize:'0.75rem',color:'rgba(255,255,255,0.3)',margin:0}}>Respuesta garantizada en menos de 24 horas</p>
         </form>
       </div>
     </section>
   );
 }
 
-// ── Footer ────────────────────────────────────────────────────────────────────
 function Footer() {
   return (
-    <footer className="border-t border-white/5 py-12 px-6">
-      <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="flex items-center gap-3">
-          <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#22C55E] to-[#1A3A8F] flex items-center justify-center">
-            <span className="font-syne font-black text-white text-xs">C</span>
+    <footer style={{borderTop:'1px solid rgba(255,255,255,0.05)',padding:'48px 24px',background:'rgba(255,255,255,0.01)'}}>
+      <div style={{maxWidth:1280,margin:'0 auto',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:24}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div style={{width:28,height:28,borderRadius:8,background:'linear-gradient(135deg,#1A3A8F,#2563EB)',display:'flex',alignItems:'center',justifyContent:'center'}}>
+            <span style={{color:'#fff',fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:14}}>C</span>
           </div>
-          <span className="font-syne font-bold text-white">CreceCon</span>
+          <span style={{fontFamily:'Syne,sans-serif',fontWeight:700,color:'#fff',fontSize:'1.1rem'}}>Crece<span style={{color:'#22C55E'}}>Con</span></span>
         </div>
-        <p className="font-dm text-white/30 text-sm text-center">
+        <p style={{fontFamily:'DM Sans,sans-serif',color:'rgba(255,255,255,0.3)',fontSize:'0.875rem',textAlign:'center',margin:0}}>
           Más crecimiento, más clientes. Más ventas — CRECECON nosotros
         </p>
-        <div className="flex items-center gap-4">
-          {['Instagram', 'Facebook', 'TikTok'].map((red) => (
-            <a key={red} href={`https://${red.toLowerCase()}.com/crececon`} target="_blank" rel="noopener noreferrer"
-              className="text-xs font-dm text-white/30 hover:text-[#22C55E] transition-colors">
-              {red}
-            </a>
+        <div style={{display:'flex',gap:20}}>
+          {['Instagram','Facebook','TikTok'].map(red=>(
+            <a key={red} href={`https://${red.toLowerCase()}.com/crececon`} target="_blank" rel="noopener noreferrer" style={{fontFamily:'DM Sans,sans-serif',fontSize:'0.875rem',color:'rgba(255,255,255,0.3)',textDecoration:'none',transition:'color 0.2s'}}
+              onMouseEnter={e=>(e.target as HTMLAnchorElement).style.color='#22C55E'} onMouseLeave={e=>(e.target as HTMLAnchorElement).style.color='rgba(255,255,255,0.3)'}>{red}</a>
           ))}
         </div>
       </div>
-      <div className="max-w-7xl mx-auto mt-8 pt-6 border-t border-white/5 text-center">
-        <p className="font-dm text-white/20 text-xs">© {new Date().getFullYear()} CreceCon. Todos los derechos reservados.</p>
+      <div style={{maxWidth:1280,margin:'32px auto 0',paddingTop:24,borderTop:'1px solid rgba(255,255,255,0.04)',textAlign:'center'}}>
+        <p style={{fontFamily:'DM Sans,sans-serif',color:'rgba(255,255,255,0.2)',fontSize:'0.75rem',margin:0}}>© {new Date().getFullYear()} CreceCon. Todos los derechos reservados.</p>
       </div>
     </footer>
   );
 }
 
-// ── Page ──────────────────────────────────────────────────────────────────────
 export default function HomePage() {
+  const [showSplash,setShowSplash]=useState(true);
   return (
-    <main className="noise">
-      <Navbar />
-      <Hero />
-      <Services />
-      <Process />
-      <Cases />
-      <FAQ />
-      <ContactForm />
-      <Footer />
-    </main>
+    <>
+      {showSplash&&<SplashScreen onDone={()=>setShowSplash(false)}/>}
+      <main className="noise" style={{opacity:showSplash?0:1,transition:'opacity 0.8s ease'}}>
+        <Navbar/>
+        <Hero/>
+        <Services/>
+        <Process/>
+        <Cases/>
+        <FAQ/>
+        <ContactForm/>
+        <Footer/>
+      </main>
+    </>
   );
 }
