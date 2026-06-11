@@ -1,136 +1,201 @@
 'use client';
-
 import { useEffect, useState } from 'react';
-import DashboardLayout from '@/components/dashboard/DashboardLayout';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, orderBy, limit } from 'firebase/firestore';
 
-const navItems = [
-  { href: '/admin', label: 'Dashboard', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> },
-  { href: '/admin/clientes', label: 'Clientes', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> },
-  { href: '/admin/setters', label: 'Setters', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
-  { href: '/admin/proyectos', label: 'Proyectos', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> },
-  { href: '/admin/leads', label: 'Leads / CRM', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> },
-  { href: '/admin/cursos', label: 'Cursos LMS', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> },
-  { href: '/admin/tickets', label: 'Soporte', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
-  { href: '/admin/facturacion', label: 'Facturación', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
-];
-
-interface Stat { label: string; value: string | number; change: string; color: string; }
+function Sidebar({ active }: { active: string }) {
+  const { logout } = useAuth();
+  const router = useRouter();
+  const nav = [
+    { href: '/admin', label: 'Dashboard', icon: '⊞' },
+    { href: '/admin/clientes', label: 'Clientes', icon: '👥' },
+    { href: '/admin/proyectos', label: 'Proyectos', icon: '📁' },
+    { href: '/admin/leads', label: 'CRM Leads', icon: '📊' },
+    { href: '/admin/cursos', label: 'Cursos LMS', icon: '🎓' },
+    { href: '/admin/tickets', label: 'Soporte', icon: '💬' },
+  ];
+  return (
+    <aside style={{width:240,minHeight:'100vh',background:'rgba(5,8,20,0.98)',borderRight:'1px solid rgba(255,255,255,0.06)',display:'flex',flexDirection:'column',position:'fixed',top:0,left:0,zIndex:40}}>
+      <div style={{padding:'20px 16px',borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div style={{width:32,height:32,borderRadius:10,background:'linear-gradient(135deg,#1A3A8F,#2563EB)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            <span style={{color:'#fff',fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:16}}>C</span>
+          </div>
+          <div>
+            <div style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:15,color:'#fff',lineHeight:1}}>Crece<span style={{color:'#22C55E'}}>Con</span></div>
+            <div style={{fontFamily:'DM Sans,sans-serif',fontSize:10,color:'rgba(255,255,255,0.3)',marginTop:2}}>Admin Panel</div>
+          </div>
+        </div>
+      </div>
+      <nav style={{padding:'12px 8px',flex:1}}>
+        {nav.map(item=>(
+          <Link key={item.href} href={item.href} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderRadius:8,marginBottom:2,color:active===item.href?'#60A5FA':'rgba(255,255,255,0.55)',background:active===item.href?'rgba(37,99,235,0.12)':'transparent',borderLeft:active===item.href?'2px solid #2563EB':'2px solid transparent',fontFamily:'DM Sans,sans-serif',fontSize:13,fontWeight:500,textDecoration:'none',transition:'all 0.15s'}}>
+            <span style={{fontSize:15}}>{item.icon}</span>
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+      <div style={{padding:'12px 8px',borderTop:'1px solid rgba(255,255,255,0.06)'}}>
+        <div style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',marginBottom:4}}>
+          <div style={{width:28,height:28,borderRadius:'50%',background:'linear-gradient(135deg,#1A3A8F,#22C55E)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            <span style={{color:'#fff',fontSize:11,fontWeight:700}}>W</span>
+          </div>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{fontFamily:'DM Sans,sans-serif',fontSize:12,color:'#fff',fontWeight:600,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>Williams M.</div>
+            <div style={{fontFamily:'DM Sans,sans-serif',fontSize:10,color:'rgba(255,255,255,0.3)'}}>Administrador</div>
+          </div>
+        </div>
+        <button onClick={()=>{logout();router.push('/login');}} style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'9px 12px',borderRadius:8,background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.15)',color:'#F87171',fontFamily:'DM Sans,sans-serif',fontSize:12,fontWeight:500,cursor:'pointer',transition:'all 0.15s'}}>
+          <span>→</span> Cerrar sesión
+        </button>
+      </div>
+    </aside>
+  );
+}
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState<Stat[]>([
-    { label: 'Clientes activos', value: '—', change: '', color: '#22C55E' },
-    { label: 'Leads nuevos', value: '—', change: '', color: '#2563EB' },
-    { label: 'Proyectos activos', value: '—', change: '', color: '#F59E0B' },
-    { label: 'Setters', value: '—', change: '', color: '#8B5CF6' },
+  const { user } = useAuth();
+  const router = useRouter();
+  const [stats, setStats] = useState([
+    { label:'Clientes activos', value:'—', color:'#22C55E', icon:'👥', sub:'Total registrados' },
+    { label:'Leads nuevos', value:'—', color:'#2563EB', icon:'📊', sub:'Últimos registros' },
+    { label:'Proyectos activos', value:'—', color:'#F59E0B', icon:'📁', sub:'En curso' },
+    { label:'Setters', value:'—', color:'#8B5CF6', icon:'⚡', sub:'Equipo de ventas' },
   ]);
   const [leads, setLeads] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!user) return;
+    if (user.rol !== 'admin') { router.push('/login'); return; }
     const load = async () => {
       try {
-        const [clientesSnap, leadsSnap, proyectosSnap, settersSnap] = await Promise.all([
-          getDocs(query(collection(db, 'usuarios'), limit(100))),
-          getDocs(query(collection(db, 'leads'), orderBy('createdAt', 'desc'), limit(5))),
-          getDocs(collection(db, 'proyectos')),
-          getDocs(collection(db, 'usuarios')),
+        const [usuariosSnap, leadsSnap, proyectosSnap] = await Promise.all([
+          getDocs(collection(db,'usuarios')),
+          getDocs(query(collection(db,'leads'),orderBy('createdAt','desc'),limit(6))),
+          getDocs(collection(db,'proyectos')),
         ]);
-
-        const usuarios = clientesSnap.docs.map(d => d.data());
-        const clientes = usuarios.filter((u: any) => u.rol === 'cliente').length;
-        const settersCount = usuarios.filter((u: any) => u.rol === 'setter').length;
-
+        const usuarios = usuariosSnap.docs.map(d=>d.data());
+        const clientes = usuarios.filter((u:any)=>u.rol==='cliente').length;
+        const setters = usuarios.filter((u:any)=>u.rol==='setter').length;
         setStats([
-          { label: 'Clientes activos', value: clientes, change: 'Total registrados', color: '#22C55E' },
-          { label: 'Leads nuevos', value: leadsSnap.size, change: 'Últimos registros', color: '#2563EB' },
-          { label: 'Proyectos activos', value: proyectosSnap.size, change: 'En curso', color: '#F59E0B' },
-          { label: 'Setters', value: settersCount, change: 'Equipo de ventas', color: '#8B5CF6' },
+          { label:'Clientes activos', value:String(clientes), color:'#22C55E', icon:'👥', sub:'Total registrados' },
+          { label:'Leads nuevos', value:String(leadsSnap.size), color:'#2563EB', icon:'📊', sub:'Últimos registros' },
+          { label:'Proyectos activos', value:String(proyectosSnap.size), color:'#F59E0B', icon:'📁', sub:'En curso' },
+          { label:'Setters', value:String(setters), color:'#8B5CF6', icon:'⚡', sub:'Equipo de ventas' },
         ]);
-
-        setLeads(leadsSnap.docs.map(d => ({ id: d.id, ...d.data() })));
-      } catch (err) {
-        console.error(err);
-      }
+        setLeads(leadsSnap.docs.map(d=>({id:d.id,...d.data()})));
+      } catch(e){ console.error(e); }
+      setLoading(false);
     };
     load();
-  }, []);
+  }, [user]);
 
   return (
-    <DashboardLayout navItems={navItems} title="Administrador" roleColor="#22C55E">
-      <div className="space-y-8">
-        {/* Header */}
-        <div>
-          <h1 className="font-syne font-black text-2xl text-white mb-1">Panel de Control</h1>
-          <p className="font-dm text-white/40 text-sm">Vista general de CreceCon en tiempo real</p>
+    <div style={{display:'flex',minHeight:'100vh',background:'#050814'}}>
+      <Sidebar active="/admin"/>
+      <main style={{marginLeft:240,flex:1,padding:'32px',minHeight:'100vh'}}>
+        <div style={{marginBottom:32}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:12}}>
+            <div>
+              <h1 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'1.6rem',color:'#fff',margin:0,letterSpacing:'-0.02em'}}>Panel de Control</h1>
+              <p style={{fontFamily:'DM Sans,sans-serif',color:'rgba(255,255,255,0.38)',fontSize:'0.875rem',margin:'4px 0 0'}}>Vista general de CreceCon en tiempo real</p>
+            </div>
+            <span style={{display:'inline-flex',alignItems:'center',gap:6,background:'rgba(34,197,94,0.1)',border:'1px solid rgba(34,197,94,0.2)',borderRadius:9999,padding:'5px 12px',fontFamily:'DM Sans,sans-serif',fontSize:'0.72rem',color:'#4ADE80'}}>
+              <span style={{width:6,height:6,borderRadius:'50%',background:'#22C55E',display:'inline-block'}}/>
+              Sistema activo
+            </span>
+          </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {stats.map((stat) => (
-            <div key={stat.label} className="card glass-hover">
-              <div className="flex items-start justify-between mb-3">
-                <div className="w-2 h-2 rounded-full mt-1" style={{ background: stat.color }} />
-                <div className="text-xs font-dm text-white/30 uppercase tracking-wider">{stat.change}</div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(200px,1fr))',gap:16,marginBottom:32}}>
+          {stats.map(stat=>(
+            <div key={stat.label} style={{background:'rgba(13,20,38,0.7)',backdropFilter:'blur(20px)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:16,padding:'20px',position:'relative',overflow:'hidden'}}>
+              <div style={{position:'absolute',top:0,left:0,right:0,height:2,background:`linear-gradient(90deg,transparent,${stat.color}50,transparent)`}}/>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
+                <span style={{fontSize:'1.4rem'}}>{stat.icon}</span>
+                <span style={{fontFamily:'DM Sans,sans-serif',fontSize:'0.7rem',color:'rgba(255,255,255,0.3)',textTransform:'uppercase',letterSpacing:'0.05em'}}>{stat.sub}</span>
               </div>
-              <div className="font-syne font-black text-3xl text-white mb-1" style={{ color: stat.color }}>{stat.value}</div>
-              <div className="font-dm text-white/50 text-sm">{stat.label}</div>
+              <div style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'2rem',color:stat.color,lineHeight:1,marginBottom:6}}>{loading?'—':stat.value}</div>
+              <div style={{fontFamily:'DM Sans,sans-serif',fontSize:'0.82rem',color:'rgba(255,255,255,0.5)'}}>{stat.label}</div>
             </div>
           ))}
         </div>
 
-        {/* Recent Leads */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="font-syne font-bold text-white text-lg">Leads recientes</h2>
-            <a href="/admin/leads" className="text-xs font-dm text-[#22C55E] hover:underline">Ver todos →</a>
-          </div>
-          {leads.length === 0 ? (
-            <div className="text-center py-12">
-              <div className="text-4xl mb-3">📭</div>
-              <p className="font-dm text-white/30 text-sm">Aún no hay leads registrados</p>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 300px',gap:20}}>
+          <div style={{background:'rgba(13,20,38,0.7)',backdropFilter:'blur(20px)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:16,padding:'24px'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20}}>
+              <h2 style={{fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:'1rem',color:'#fff',margin:0}}>Leads recientes</h2>
+              <Link href="/admin/leads" style={{fontFamily:'DM Sans,sans-serif',fontSize:'0.8rem',color:'#22C55E',textDecoration:'none'}}>Ver todos →</Link>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {leads.map((lead: any) => (
-                <div key={lead.id} className="flex items-center justify-between p-4 rounded-xl bg-white/2 border border-white/5 hover:bg-white/4 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#22C55E] to-[#1A3A8F] flex items-center justify-center">
-                      <span className="text-xs font-syne font-bold text-white">{lead.nombre?.charAt(0) || '?'}</span>
+            {loading?(
+              <div style={{display:'flex',flexDirection:'column',gap:10}}>
+                {[1,2,3].map(i=><div key={i} style={{height:48,borderRadius:10,background:'rgba(255,255,255,0.04)'}}/>)}
+              </div>
+            ):leads.length===0?(
+              <div style={{textAlign:'center',padding:'40px 0'}}>
+                <div style={{fontSize:'2rem',marginBottom:8}}>📭</div>
+                <p style={{fontFamily:'DM Sans,sans-serif',color:'rgba(255,255,255,0.28)',fontSize:'0.875rem',margin:0}}>Aún no hay leads registrados</p>
+              </div>
+            ):(
+              <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                {leads.map((lead:any)=>(
+                  <div key={lead.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 14px',borderRadius:10,background:'rgba(255,255,255,0.025)',border:'1px solid rgba(255,255,255,0.05)'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:10}}>
+                      <div style={{width:32,height:32,borderRadius:'50%',background:'linear-gradient(135deg,#1A3A8F,#22C55E)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                        <span style={{color:'#fff',fontSize:12,fontWeight:700}}>{lead.nombre?.charAt(0)?.toUpperCase()||'?'}</span>
+                      </div>
+                      <div>
+                        <div style={{fontFamily:'DM Sans,sans-serif',fontWeight:600,color:'#fff',fontSize:'0.875rem'}}>{lead.nombre||'Sin nombre'}</div>
+                        <div style={{fontFamily:'DM Sans,sans-serif',color:'rgba(255,255,255,0.35)',fontSize:'0.75rem'}}>{lead.email||''}</div>
+                      </div>
                     </div>
-                    <div>
-                      <div className="font-dm font-medium text-white text-sm">{lead.nombre}</div>
-                      <div className="font-dm text-white/40 text-xs">{lead.email}</div>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="font-dm text-white/40 text-xs hidden md:block">{lead.servicio}</span>
-                    <span className={`badge ${lead.estado === 'nuevo' ? 'badge-green' : lead.estado === 'contactado' ? 'badge-blue' : 'badge-gray'}`}>
-                      {lead.estado}
+                    <span style={{display:'inline-flex',alignItems:'center',padding:'3px 10px',borderRadius:9999,fontSize:'0.7rem',fontWeight:600,background:lead.estado==='nuevo'?'rgba(34,197,94,0.12)':'rgba(37,99,235,0.12)',color:lead.estado==='nuevo'?'#4ADE80':'#60A5FA',border:`1px solid ${lead.estado==='nuevo'?'rgba(34,197,94,0.25)':'rgba(37,99,235,0.25)'}`}}>
+                      {lead.estado||'nuevo'}
                     </span>
                   </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div style={{display:'flex',flexDirection:'column',gap:16}}>
+            <div style={{background:'rgba(13,20,38,0.7)',backdropFilter:'blur(20px)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:16,padding:'20px'}}>
+              <h2 style={{fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:'0.95rem',color:'#fff',margin:'0 0 14px'}}>Acciones rápidas</h2>
+              <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                {[
+                  {label:'Nuevo cliente',href:'/admin/clientes',icon:'👤'},
+                  {label:'Nuevo proyecto',href:'/admin/proyectos',icon:'📁'},
+                  {label:'Nuevo curso',href:'/admin/cursos',icon:'🎓'},
+                  {label:'Ver tickets',href:'/admin/tickets',icon:'🎫'},
+                ].map(a=>(
+                  <Link key={a.label} href={a.href} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderRadius:10,background:'rgba(255,255,255,0.03)',border:'1px solid rgba(255,255,255,0.06)',color:'rgba(255,255,255,0.6)',fontFamily:'DM Sans,sans-serif',fontSize:'0.85rem',fontWeight:500,textDecoration:'none'}}>
+                    <span>{a.icon}</span>{a.label}<span style={{marginLeft:'auto',color:'rgba(255,255,255,0.25)'}}>→</span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+            <div style={{background:'rgba(13,20,38,0.7)',backdropFilter:'blur(20px)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:16,padding:'20px'}}>
+              <h2 style={{fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:'0.95rem',color:'#fff',margin:'0 0 14px'}}>Estado del sistema</h2>
+              {[
+                {label:'Firebase',ok:true},
+                {label:'Cloudflare CDN',ok:true},
+                {label:'Cloudinary',ok:true},
+              ].map(s=>(
+                <div key={s.label} style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+                  <span style={{fontFamily:'DM Sans,sans-serif',fontSize:'0.82rem',color:'rgba(255,255,255,0.5)'}}>{s.label}</span>
+                  <span style={{display:'inline-flex',alignItems:'center',gap:5,fontFamily:'DM Sans,sans-serif',fontSize:'0.72rem',color:'#4ADE80'}}>
+                    <span style={{width:5,height:5,borderRadius:'50%',background:'#22C55E',display:'inline-block'}}/>Operativo
+                  </span>
                 </div>
               ))}
             </div>
-          )}
+          </div>
         </div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: 'Nuevo cliente', href: '/admin/clientes/nuevo', icon: '👤', color: '#22C55E' },
-            { label: 'Nuevo proyecto', href: '/admin/proyectos/nuevo', icon: '📁', color: '#2563EB' },
-            { label: 'Nuevo curso', href: '/admin/cursos/nuevo', icon: '🎓', color: '#F59E0B' },
-            { label: 'Ver tickets', href: '/admin/tickets', icon: '🎫', color: '#8B5CF6' },
-          ].map((action) => (
-            <a key={action.label} href={action.href}
-              className="card glass-hover text-center group cursor-pointer block">
-              <div className="text-2xl mb-2">{action.icon}</div>
-              <div className="font-dm text-white/60 text-xs group-hover:text-white transition-colors">{action.label}</div>
-            </a>
-          ))}
-        </div>
-      </div>
-    </DashboardLayout>
+      </main>
+    </div>
   );
 }
