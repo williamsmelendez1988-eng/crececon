@@ -1,173 +1,153 @@
 'use client';
-
 import { useEffect, useState } from 'react';
-import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import { db } from '@/lib/firebase';
-import { doc, getDoc, collection, getDocs, query, where } from 'firebase/firestore';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
-const navItems = [
-  { href: '/cliente', label: 'Mi Proyecto', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> },
-  { href: '/cliente/onboarding', label: 'Onboarding', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> },
-  { href: '/cliente/archivos', label: 'Centro de archivos', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> },
-  { href: '/cliente/facturas', label: 'Facturas', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> },
-  { href: '/cliente/soporte', label: 'Soporte', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
-];
+function Sidebar({ active }: { active: string }) {
+  const { logout } = useAuth();
+  const router = useRouter();
+  const nav = [
+    { href: '/cliente', label: 'Dashboard', icon: '⊞' },
+    { href: '/cliente/onboarding', label: 'Onboarding', icon: '🚀' },
+    { href: '/cliente/soporte', label: 'Soporte', icon: '💬' },
+  ];
+  return (
+    <aside style={{width:240,minHeight:'100vh',background:'rgba(5,8,20,0.98)',borderRight:'1px solid rgba(255,255,255,0.06)',display:'flex',flexDirection:'column',position:'fixed',top:0,left:0,zIndex:40}}>
+      <div style={{padding:'20px 16px',borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div style={{width:32,height:32,borderRadius:10,background:'linear-gradient(135deg,#1A3A8F,#2563EB)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            <span style={{color:'#fff',fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:16}}>C</span>
+          </div>
+          <div>
+            <div style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:15,color:'#fff',lineHeight:1}}>Crece<span style={{color:'#22C55E'}}>Con</span></div>
+            <div style={{fontFamily:'DM Sans,sans-serif',fontSize:10,color:'rgba(255,255,255,0.3)',marginTop:2}}>Panel Cliente</div>
+          </div>
+        </div>
+      </div>
+      <nav style={{padding:'12px 8px',flex:1}}>
+        {nav.map(item=>(
+          <Link key={item.href} href={item.href} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderRadius:8,marginBottom:2,color:active===item.href?'#60A5FA':'rgba(255,255,255,0.55)',background:active===item.href?'rgba(37,99,235,0.12)':'transparent',borderLeft:active===item.href?'2px solid #2563EB':'2px solid transparent',fontFamily:'DM Sans,sans-serif',fontSize:13,fontWeight:500,textDecoration:'none',transition:'all 0.15s'}}>
+            <span style={{fontSize:15}}>{item.icon}</span>
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+      <div style={{padding:'12px 8px',borderTop:'1px solid rgba(255,255,255,0.06)'}}>
+        <button onClick={()=>{logout();router.push('/login');}} style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'9px 12px',borderRadius:8,background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.15)',color:'#F87171',fontFamily:'DM Sans,sans-serif',fontSize:12,fontWeight:500,cursor:'pointer'}}>
+          <span>→</span> Cerrar sesión
+        </button>
+      </div>
+    </aside>
+  );
+}
 
-const ETAPAS = [
-  { key: 'informacion', label: 'Información recibida', icon: '📋' },
-  { key: 'diseno', label: 'Diseño', icon: '🎨' },
-  { key: 'desarrollo', label: 'Desarrollo', icon: '⚙️' },
-  { key: 'seo', label: 'SEO', icon: '🔍' },
-  { key: 'publicacion', label: 'Publicación', icon: '🚀' },
-];
+interface ClienteData {
+  nombre?: string;
+  empresa?: string;
+  proyectoNombre?: string;
+  progreso?: number;
+  fase?: string;
+  onboardingCompleto?: boolean;
+}
+
+const fases = ['Pago','Onboarding','Diseño','Desarrollo','Lanzamiento','Escalamiento'];
 
 export default function ClienteDashboard() {
   const { user } = useAuth();
-  const [proyecto, setProyecto] = useState<any>(null);
-  const [tickets, setTickets] = useState<any[]>([]);
+  const router = useRouter();
+  const [data, setData] = useState<ClienteData>({});
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
+    if (user.rol !== 'cliente') { router.push('/login'); return; }
     const load = async () => {
       try {
-        // Load project
-        const clienteDoc = await getDoc(doc(db, 'usuarios', user.uid));
-        const clienteData = clienteDoc.data();
-        if (clienteData?.proyectoId) {
-          const proyectoDoc = await getDoc(doc(db, 'proyectos', clienteData.proyectoId));
-          if (proyectoDoc.exists()) setProyecto({ id: proyectoDoc.id, ...proyectoDoc.data() });
-        }
-        // Load recent tickets
-        const ticketsSnap = await getDocs(query(collection(db, 'tickets'), where('clienteId', '==', user.uid)));
-        setTickets(ticketsSnap.docs.map(d => ({ id: d.id, ...d.data() })).slice(0, 3));
-      } catch (err) { console.error(err); }
+        const snap = await getDoc(doc(db,'usuarios',user.uid));
+        if (snap.exists()) setData(snap.data() as ClienteData);
+      } catch(e){ console.error(e); }
       setLoading(false);
     };
     load();
   }, [user]);
 
+  const progreso = data.progreso || 0;
+  const faseActualIndex = fases.indexOf(data.fase||'Pago');
+
   return (
-    <DashboardLayout navItems={navItems} title="Cliente" roleColor="#F59E0B">
-      <div className="space-y-8">
-        {/* Header */}
-        <div>
-          <h1 className="font-syne font-black text-2xl text-white mb-1">
-            Bienvenido, {user?.nombre?.split(' ')[0]} 👋
+    <div style={{display:'flex',minHeight:'100vh',background:'#050814'}}>
+      <Sidebar active="/cliente"/>
+      <main style={{marginLeft:240,flex:1,padding:'32px',minHeight:'100vh'}}>
+        <div style={{marginBottom:32}}>
+          <h1 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'1.6rem',color:'#fff',margin:0,letterSpacing:'-0.02em'}}>
+            Hola, {data.nombre?.split(' ')[0]||'Cliente'} 👋
           </h1>
-          <p className="font-dm text-white/40 text-sm">Aquí puedes seguir el avance de tu proyecto en tiempo real</p>
+          <p style={{fontFamily:'DM Sans,sans-serif',color:'rgba(255,255,255,0.38)',fontSize:'0.875rem',margin:'4px 0 0'}}>
+            {data.empresa?`Proyecto para ${data.empresa}`:'Tu proyecto con CreceCon'}
+          </p>
         </div>
 
-        {loading ? (
-          <div className="text-center py-20 text-white/30 font-dm">Cargando tu proyecto...</div>
-        ) : !proyecto ? (
-          <div className="card text-center py-16">
-            <div className="text-5xl mb-4">🏗️</div>
-            <h2 className="font-syne font-bold text-white text-xl mb-2">Tu proyecto está siendo configurado</h2>
-            <p className="font-dm text-white/40 text-sm mb-6">Mientras tanto, completa tu onboarding para que podamos comenzar.</p>
-            <a href="/cliente/onboarding" className="btn-primary px-8 py-3 rounded-xl font-syne font-bold text-sm inline-block">
-              Completar onboarding →
-            </a>
-          </div>
-        ) : (
-          <>
-            {/* Project card */}
-            <div className="card relative overflow-hidden">
-              <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-[#F59E0B]/50 to-transparent" />
-              <div className="flex items-start justify-between mb-6">
+        {/* Onboarding banner */}
+        {!loading && !data.onboardingCompleto && (
+          <Link href="/cliente/onboarding" style={{display:'block',background:'linear-gradient(135deg,rgba(34,197,94,0.15),rgba(37,99,235,0.08))',border:'1px solid rgba(34,197,94,0.25)',borderRadius:16,padding:'20px 24px',marginBottom:24,textDecoration:'none'}}>
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:12}}>
+              <div style={{display:'flex',alignItems:'center',gap:14}}>
+                <span style={{fontSize:'1.6rem'}}>🚀</span>
                 <div>
-                  <h2 className="font-syne font-bold text-white text-xl mb-1">{proyecto.nombre}</h2>
-                  <p className="font-dm text-white/40 text-sm">{proyecto.descripcion}</p>
+                  <div style={{fontFamily:'Syne,sans-serif',fontWeight:700,color:'#fff',fontSize:'0.95rem'}}>Completa tu onboarding</div>
+                  <div style={{fontFamily:'DM Sans,sans-serif',color:'rgba(255,255,255,0.45)',fontSize:'0.8rem'}}>4 pasos rápidos para comenzar tu proyecto</div>
                 </div>
-                <span className={`badge ${proyecto.estado === 'activo' ? 'badge-green' : proyecto.estado === 'completado' ? 'badge-blue' : 'badge-yellow'}`}>
-                  {proyecto.estado}
-                </span>
               </div>
-
-              {/* Progress stages */}
-              <div className="space-y-4">
-                {ETAPAS.map((etapa) => {
-                  const pct = proyecto.progreso?.[etapa.key] ?? 0;
-                  return (
-                    <div key={etapa.key}>
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          <span className="text-base">{etapa.icon}</span>
-                          <span className="font-dm text-sm font-medium text-white">{etapa.label}</span>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          {pct === 0 ? (
-                            <span className="badge badge-gray">Pendiente</span>
-                          ) : pct === 100 ? (
-                            <span className="badge badge-green">✓ Completado</span>
-                          ) : (
-                            <span className="badge badge-yellow">En proceso</span>
-                          )}
-                          <span className="font-syne font-bold text-sm" style={{
-                            color: pct === 100 ? '#22C55E' : pct > 0 ? '#F59E0B' : 'rgba(255,255,255,0.3)'
-                          }}>{pct}%</span>
-                        </div>
-                      </div>
-                      <div className="progress-bar">
-                        <div className="progress-fill" style={{
-                          width: `${pct}%`,
-                          background: pct === 100 ? 'linear-gradient(90deg, #22C55E, #16A34A)' :
-                            pct > 0 ? 'linear-gradient(90deg, #F59E0B, #D97706)' : 'transparent'
-                        }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+              <span style={{color:'#22C55E',fontFamily:'DM Sans,sans-serif',fontSize:'0.85rem',fontWeight:600}}>Comenzar →</span>
             </div>
-          </>
+          </Link>
         )}
 
-        {/* Recent tickets */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-syne font-bold text-white text-lg">Soporte reciente</h2>
-            <a href="/cliente/soporte" className="text-xs font-dm text-[#F59E0B] hover:underline">Ver todos →</a>
+        {/* Progreso del proyecto */}
+        <div style={{background:'rgba(13,20,38,0.7)',backdropFilter:'blur(20px)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:16,padding:'28px',marginBottom:24}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:24,flexWrap:'wrap',gap:8}}>
+            <div>
+              <h2 style={{fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:'1.1rem',color:'#fff',margin:0}}>{data.proyectoNombre||'Tu proyecto'}</h2>
+              <p style={{fontFamily:'DM Sans,sans-serif',color:'rgba(255,255,255,0.4)',fontSize:'0.82rem',margin:'4px 0 0'}}>Fase actual: {data.fase||'Pago'}</p>
+            </div>
+            <div style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'2rem',background:'linear-gradient(135deg,#60A5FA,#22C55E)',WebkitBackgroundClip:'text',WebkitTextFillColor:'transparent',backgroundClip:'text'}}>
+              {loading?'—':`${progreso}%`}
+            </div>
           </div>
-          {tickets.length === 0 ? (
-            <div className="text-center py-8">
-              <p className="font-dm text-white/30 text-sm">No hay tickets de soporte</p>
-              <a href="/cliente/soporte" className="text-xs font-dm text-[#F59E0B] hover:underline mt-2 block">Crear ticket →</a>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {tickets.map((ticket: any) => (
-                <div key={ticket.id} className="flex items-center justify-between p-3 rounded-xl bg-white/2 border border-white/5">
-                  <div>
-                    <div className="font-dm text-sm text-white font-medium">{ticket.asunto}</div>
-                    <div className="font-dm text-xs text-white/30 mt-0.5">{ticket.mensaje?.slice(0, 60)}...</div>
-                  </div>
-                  <span className={`badge flex-shrink-0 ${
-                    ticket.estado === 'abierto' ? 'badge-yellow' :
-                    ticket.estado === 'en_proceso' ? 'badge-blue' : 'badge-green'
-                  }`}>{ticket.estado?.replace('_', ' ')}</span>
+          <div style={{width:'100%',height:8,background:'rgba(255,255,255,0.06)',borderRadius:9999,overflow:'hidden',marginBottom:24}}>
+            <div style={{height:'100%',width:`${progreso}%`,background:'linear-gradient(90deg,#1A3A8F,#22C55E)',borderRadius:9999,transition:'width 1s cubic-bezier(0.34,1.56,0.64,1)'}}/>
+          </div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(90px,1fr))',gap:8}}>
+            {fases.map((fase,i)=>{
+              const completado = i < faseActualIndex;
+              const actual = i === faseActualIndex;
+              return (
+                <div key={fase} style={{textAlign:'center',padding:'12px 8px',borderRadius:10,background:actual?'rgba(34,197,94,0.1)':completado?'rgba(255,255,255,0.03)':'rgba(255,255,255,0.015)',border:actual?'1px solid rgba(34,197,94,0.3)':'1px solid rgba(255,255,255,0.05)'}}>
+                  <div style={{fontSize:'1.2rem',marginBottom:4}}>{completado?'✅':actual?'🔵':'⚪'}</div>
+                  <div style={{fontFamily:'DM Sans,sans-serif',fontSize:'0.7rem',color:actual?'#4ADE80':'rgba(255,255,255,0.4)',fontWeight:actual?600:400}}>{fase}</div>
                 </div>
-              ))}
-            </div>
-          )}
+              );
+            })}
+          </div>
         </div>
 
-        {/* Quick actions */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[
-            { label: 'Completar onboarding', href: '/cliente/onboarding', icon: '📝' },
-            { label: 'Ver archivos', href: '/cliente/archivos', icon: '📁' },
-            { label: 'Mis facturas', href: '/cliente/facturas', icon: '💳' },
-            { label: 'Crear ticket', href: '/cliente/soporte', icon: '🎫' },
-          ].map((a) => (
-            <a key={a.label} href={a.href} className="card glass-hover text-center group block">
-              <div className="text-2xl mb-2">{a.icon}</div>
-              <div className="font-dm text-white/60 text-xs group-hover:text-white transition-colors">{a.label}</div>
-            </a>
-          ))}
+        {/* Acciones */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))',gap:16}}>
+          <Link href="/cliente/soporte" style={{display:'block',background:'rgba(13,20,38,0.7)',backdropFilter:'blur(20px)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:16,padding:'24px',textDecoration:'none',transition:'border-color 0.2s'}}>
+            <div style={{fontSize:'1.8rem',marginBottom:12}}>💬</div>
+            <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:700,color:'#fff',fontSize:'1rem',margin:'0 0 6px'}}>Soporte y tickets</h3>
+            <p style={{fontFamily:'DM Sans,sans-serif',color:'rgba(255,255,255,0.42)',fontSize:'0.85rem',margin:0}}>Chatea con tu equipo y revisa tus tickets</p>
+          </Link>
+          <a href="https://wa.me/584128021091" target="_blank" rel="noopener noreferrer" style={{display:'block',background:'rgba(13,20,38,0.7)',backdropFilter:'blur(20px)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:16,padding:'24px',textDecoration:'none',transition:'border-color 0.2s'}}>
+            <div style={{fontSize:'1.8rem',marginBottom:12}}>📱</div>
+            <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:700,color:'#fff',fontSize:'1rem',margin:'0 0 6px'}}>WhatsApp directo</h3>
+            <p style={{fontFamily:'DM Sans,sans-serif',color:'rgba(255,255,255,0.42)',fontSize:'0.85rem',margin:0}}>Contacta a tu equipo de proyecto al instante</p>
+          </a>
         </div>
-      </div>
-    </DashboardLayout>
+      </main>
+    </div>
   );
 }
