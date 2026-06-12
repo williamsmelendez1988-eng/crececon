@@ -1,170 +1,221 @@
 'use client';
-
 import { useEffect, useState } from 'react';
-import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import { db, auth } from '@/lib/firebase';
-import { collection, getDocs, doc, setDoc, updateDoc, query, orderBy } from 'firebase/firestore';
-import { createUserWithEmailAndPassword } from 'firebase/auth';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/context/AuthContext';
+import { db } from '@/lib/firebase';
+import { collection, getDocs, doc, setDoc, query, orderBy } from 'firebase/firestore';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 
-const navItems = [
-  { href: '/admin', label: 'Dashboard', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> },
-  { href: '/admin/clientes', label: 'Clientes', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg> },
-  { href: '/admin/setters', label: 'Setters', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg> },
-  { href: '/admin/proyectos', label: 'Proyectos', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg> },
-  { href: '/admin/leads', label: 'Leads / CRM', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> },
-  { href: '/admin/cursos', label: 'Cursos LMS', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> },
-  { href: '/admin/tickets', label: 'Soporte', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
-];
+function Sidebar({ active }: { active: string }) {
+  const { logout } = useAuth();
+  const router = useRouter();
+  const nav = [
+    { href: '/admin', label: 'Dashboard', icon: '⊞' },
+    { href: '/admin/clientes', label: 'Clientes', icon: '👥' },
+    { href: '/admin/proyectos', label: 'Proyectos', icon: '📁' },
+    { href: '/admin/leads', label: 'CRM Leads', icon: '📊' },
+    { href: '/admin/cursos', label: 'Cursos LMS', icon: '🎓' },
+    { href: '/admin/tickets', label: 'Soporte', icon: '💬' },
+  ];
+  return (
+    <aside style={{width:240,minHeight:'100vh',background:'rgba(5,8,20,0.98)',borderRight:'1px solid rgba(255,255,255,0.06)',display:'flex',flexDirection:'column',position:'fixed',top:0,left:0,zIndex:40}}>
+      <div style={{padding:'20px 16px',borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
+        <div style={{display:'flex',alignItems:'center',gap:10}}>
+          <div style={{width:32,height:32,borderRadius:10,background:'linear-gradient(135deg,#1A3A8F,#2563EB)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+            <span style={{color:'#fff',fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:16}}>C</span>
+          </div>
+          <div>
+            <div style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:15,color:'#fff',lineHeight:1}}>Crece<span style={{color:'#22C55E'}}>Con</span></div>
+            <div style={{fontFamily:'DM Sans,sans-serif',fontSize:10,color:'rgba(255,255,255,0.3)',marginTop:2}}>Admin Panel</div>
+          </div>
+        </div>
+      </div>
+      <nav style={{padding:'12px 8px',flex:1}}>
+        {nav.map(item=>(
+          <Link key={item.href} href={item.href} style={{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',borderRadius:8,marginBottom:2,color:active===item.href?'#60A5FA':'rgba(255,255,255,0.55)',background:active===item.href?'rgba(37,99,235,0.12)':'transparent',borderLeft:active===item.href?'2px solid #2563EB':'2px solid transparent',fontFamily:'DM Sans,sans-serif',fontSize:13,fontWeight:500,textDecoration:'none',transition:'all 0.15s'}}>
+            <span style={{fontSize:15}}>{item.icon}</span>
+            {item.label}
+          </Link>
+        ))}
+      </nav>
+      <div style={{padding:'12px 8px',borderTop:'1px solid rgba(255,255,255,0.06)'}}>
+        <button onClick={()=>{logout();router.push('/login');}} style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'9px 12px',borderRadius:8,background:'rgba(239,68,68,0.08)',border:'1px solid rgba(239,68,68,0.15)',color:'#F87171',fontFamily:'DM Sans,sans-serif',fontSize:12,fontWeight:500,cursor:'pointer'}}>
+          <span>→</span> Cerrar sesión
+        </button>
+      </div>
+    </aside>
+  );
+}
 
-export default function AdminClientes() {
-  const [clientes, setClientes] = useState<any[]>([]);
+const firebaseConfig = {
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY||'',
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN||'',
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID||'',
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET||'',
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID||'',
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID||'',
+};
+
+export default function ClientesPage() {
+  const { user } = useAuth();
+  const router = useRouter();
+  const [usuarios, setUsuarios] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ nombre: '', email: '', password: '', whatsapp: '', empresa: '', pais: '', rol: 'cliente' });
+  const [form, setForm] = useState({ nombre:'', email:'', password:'', rol:'cliente', empresa:'' });
+  const [creating, setCreating] = useState(false);
+  const [msg, setMsg] = useState<{type:string,text:string}|null>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    if (user.rol !== 'admin') { router.push('/login'); return; }
+    load();
+  }, [user]);
 
   const load = async () => {
     setLoading(true);
-    const snap = await getDocs(collection(db, 'usuarios'));
-    const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    setClientes(all.filter((u: any) => u.rol === 'cliente'));
+    try {
+      const snap = await getDocs(query(collection(db,'usuarios'),orderBy('createdAt','desc')));
+      setUsuarios(snap.docs.map(d=>({id:d.id,...d.data()})));
+    } catch(e){ console.error(e); }
     setLoading(false);
   };
 
-  useEffect(() => { load(); }, []);
-
-  const createUser = async () => {
-    setSaving(true);
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreating(true);
+    setMsg(null);
+    const secondaryApp = initializeApp(firebaseConfig, 'Secondary-'+Date.now());
     try {
-      const cred = await createUserWithEmailAndPassword(auth, form.email, form.password);
-      await setDoc(doc(db, 'usuarios', cred.user.uid), {
-        uid: cred.user.uid,
+      const secondaryAuth = getAuth(secondaryApp);
+      const cred = await createUserWithEmailAndPassword(secondaryAuth, form.email, form.password);
+      await setDoc(doc(db,'usuarios',cred.user.uid), {
         nombre: form.nombre,
         email: form.email,
-        whatsapp: form.whatsapp,
-        empresa: form.empresa,
-        pais: form.pais,
         rol: form.rol,
-        activo: true,
+        empresa: form.empresa||'',
         createdAt: new Date(),
+        ...(form.rol==='setter'?{puntos:0,nivel:1,leadsConvertidos:0,comisionMes:0,ranking:0}:{}),
+        ...(form.rol==='socio'?{porcentajeParticipacion:0,ingresosTotales:0,ingresosMes:0,clientesReferidos:0}:{}),
+        ...(form.rol==='cliente'?{progreso:0,fase:'Pago',onboardingCompleto:false,proyectoNombre:form.empresa||'Proyecto'}:{}),
       });
+      setMsg({type:'ok',text:`Usuario ${form.nombre} creado exitosamente como ${form.rol}`});
+      setForm({nombre:'',email:'',password:'',rol:'cliente',empresa:''});
       setShowForm(false);
-      setForm({ nombre: '', email: '', password: '', whatsapp: '', empresa: '', pais: '', rol: 'cliente' });
-      await load();
-    } catch (err: any) {
-      alert(err.message);
+      load();
+    } catch(err:any) {
+      const messages:Record<string,string> = {
+        'auth/email-already-in-use':'Este correo ya está registrado.',
+        'auth/weak-password':'La contraseña debe tener al menos 6 caracteres.',
+        'auth/invalid-email':'Correo inválido.',
+      };
+      setMsg({type:'error',text:messages[err.code]||'Error al crear usuario.'});
+    } finally {
+      await deleteApp(secondaryApp);
+      setCreating(false);
     }
-    setSaving(false);
   };
 
-  const toggleActivo = async (id: string, activo: boolean) => {
-    await updateDoc(doc(db, 'usuarios', id), { activo: !activo });
-    await load();
-  };
+  const roleColors:Record<string,string> = { admin:'#22C55E', setter:'#8B5CF6', socio:'#C084FC', cliente:'#60A5FA' };
+  const roleLabels:Record<string,string> = { admin:'Admin', setter:'Setter', socio:'Socio', cliente:'Cliente' };
 
   return (
-    <DashboardLayout navItems={navItems} title="Administrador" roleColor="#22C55E">
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+    <div style={{display:'flex',minHeight:'100vh',background:'#050814'}}>
+      <Sidebar active="/admin/clientes"/>
+      <main style={{marginLeft:240,flex:1,padding:'32px',minHeight:'100vh'}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:32,flexWrap:'wrap',gap:12}}>
           <div>
-            <h1 className="font-syne font-black text-2xl text-white">Clientes</h1>
-            <p className="font-dm text-white/40 text-sm">{clientes.length} clientes registrados</p>
+            <h1 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:'1.6rem',color:'#fff',margin:0,letterSpacing:'-0.02em'}}>Usuarios</h1>
+            <p style={{fontFamily:'DM Sans,sans-serif',color:'rgba(255,255,255,0.38)',fontSize:'0.875rem',margin:'4px 0 0'}}>Gestiona clientes, setters y socios</p>
           </div>
-          <button onClick={() => setShowForm(true)} className="btn-primary px-5 py-2.5 rounded-xl font-syne font-bold text-sm">
-            + Nuevo usuario
+          <button onClick={()=>{setShowForm(!showForm);setMsg(null);}} className="btn-primary" style={{padding:'11px 22px',fontSize:'0.9rem'}}>
+            {showForm?'✕ Cancelar':'+ Nuevo usuario'}
           </button>
         </div>
 
+        {msg && (
+          <div style={{padding:'12px 16px',borderRadius:10,marginBottom:20,fontFamily:'DM Sans,sans-serif',fontSize:'0.875rem',background:msg.type==='ok'?'rgba(34,197,94,0.1)':'rgba(239,68,68,0.1)',border:`1px solid ${msg.type==='ok'?'rgba(34,197,94,0.3)':'rgba(239,68,68,0.3)'}`,color:msg.type==='ok'?'#4ADE80':'#F87171'}}>
+            {msg.text}
+          </div>
+        )}
+
         {showForm && (
-          <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-            <div className="w-full max-w-lg card space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="font-syne font-bold text-white text-xl">Crear usuario</h2>
-                <button onClick={() => setShowForm(false)} className="text-white/40 hover:text-white text-xl">✕</button>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                {[
-                  { f: 'nombre', p: 'Nombre completo' },
-                  { f: 'email', p: 'Email', t: 'email' },
-                  { f: 'password', p: 'Contraseña', t: 'password' },
-                  { f: 'whatsapp', p: 'WhatsApp' },
-                  { f: 'empresa', p: 'Empresa' },
-                  { f: 'pais', p: 'País' },
-                ].map(({ f, p, t }) => (
-                  <div key={f}>
-                    <label className="block text-xs font-dm text-white/40 mb-1 uppercase tracking-wider">{p}</label>
-                    <input type={t || 'text'} className="input-field text-sm py-2.5" placeholder={p}
-                      value={(form as any)[f]} onChange={e => setForm({ ...form, [f]: e.target.value })} />
-                  </div>
-                ))}
+          <form onSubmit={handleCreate} className="card" style={{marginBottom:24,display:'flex',flexDirection:'column',gap:14}}>
+            <h2 style={{fontFamily:'Syne,sans-serif',fontWeight:700,fontSize:'1rem',color:'#fff',margin:0}}>Crear nuevo usuario</h2>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+              <div>
+                <label style={{display:'block',fontFamily:'DM Sans,sans-serif',fontSize:'0.72rem',color:'rgba(255,255,255,0.4)',marginBottom:6,textTransform:'uppercase'}}>Nombre completo *</label>
+                <input required className="input-field" value={form.nombre} onChange={e=>setForm({...form,nombre:e.target.value})} placeholder="Nombre y apellido"/>
               </div>
               <div>
-                <label className="block text-xs font-dm text-white/40 mb-1 uppercase tracking-wider">Rol</label>
-                <select className="input-field text-sm" value={form.rol} onChange={e => setForm({ ...form, rol: e.target.value })}>
+                <label style={{display:'block',fontFamily:'DM Sans,sans-serif',fontSize:'0.72rem',color:'rgba(255,255,255,0.4)',marginBottom:6,textTransform:'uppercase'}}>Rol *</label>
+                <select required className="input-field" value={form.rol} onChange={e=>setForm({...form,rol:e.target.value})}>
                   <option value="cliente">Cliente</option>
                   <option value="setter">Setter</option>
                   <option value="socio">Socio</option>
                   <option value="admin">Admin</option>
                 </select>
               </div>
-              <div className="flex gap-3">
-                <button onClick={createUser} disabled={saving} className="btn-primary flex-1 py-3 rounded-xl font-syne font-bold text-sm disabled:opacity-50">
-                  {saving ? 'Creando...' : 'Crear usuario'}
-                </button>
-                <button onClick={() => setShowForm(false)} className="btn-outline px-6 py-3 rounded-xl font-dm text-sm">Cancelar</button>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
+              <div>
+                <label style={{display:'block',fontFamily:'DM Sans,sans-serif',fontSize:'0.72rem',color:'rgba(255,255,255,0.4)',marginBottom:6,textTransform:'uppercase'}}>Email *</label>
+                <input required type="email" className="input-field" value={form.email} onChange={e=>setForm({...form,email:e.target.value})} placeholder="correo@ejemplo.com"/>
+              </div>
+              <div>
+                <label style={{display:'block',fontFamily:'DM Sans,sans-serif',fontSize:'0.72rem',color:'rgba(255,255,255,0.4)',marginBottom:6,textTransform:'uppercase'}}>Contraseña *</label>
+                <input required type="text" minLength={6} className="input-field" value={form.password} onChange={e=>setForm({...form,password:e.target.value})} placeholder="Mínimo 6 caracteres"/>
               </div>
             </div>
-          </div>
+            {form.rol==='cliente'&&(
+              <div>
+                <label style={{display:'block',fontFamily:'DM Sans,sans-serif',fontSize:'0.72rem',color:'rgba(255,255,255,0.4)',marginBottom:6,textTransform:'uppercase'}}>Empresa / Proyecto</label>
+                <input className="input-field" value={form.empresa} onChange={e=>setForm({...form,empresa:e.target.value})} placeholder="Nombre de la empresa"/>
+              </div>
+            )}
+            <button type="submit" disabled={creating} className="btn-primary glow-green-sm" style={{padding:'12px',fontSize:'0.9rem',opacity:creating?0.7:1}}>
+              {creating?'Creando...':'Crear usuario'}
+            </button>
+          </form>
         )}
 
-        {loading ? (
-          <div className="text-center py-20 text-white/30 font-dm">Cargando...</div>
-        ) : clientes.length === 0 ? (
-          <div className="card text-center py-16">
-            <div className="text-4xl mb-3">👥</div>
-            <p className="font-syne font-bold text-white text-lg mb-2">Sin clientes todavía</p>
-            <p className="font-dm text-white/40 text-sm">Crea el primer cliente</p>
-          </div>
-        ) : (
-          <div className="card overflow-hidden p-0">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-white/5">
-                  {['Cliente', 'Email', 'Empresa', 'País', 'Estado', 'Acciones'].map(h => (
-                    <th key={h} className="text-left text-xs font-dm text-white/40 uppercase tracking-wider px-5 py-4">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {clientes.map((c: any) => (
-                  <tr key={c.id} className="border-b border-white/5 hover:bg-white/2 transition-colors">
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#22C55E] to-[#1A3A8F] flex items-center justify-center text-xs font-bold text-white">
-                          {c.nombre?.charAt(0)}
-                        </div>
-                        <span className="font-dm text-white text-sm font-medium">{c.nombre}</span>
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 font-dm text-white/50 text-sm">{c.email}</td>
-                    <td className="px-5 py-4 font-dm text-white/50 text-sm">{c.empresa || '—'}</td>
-                    <td className="px-5 py-4 font-dm text-white/50 text-sm">{c.pais || '—'}</td>
-                    <td className="px-5 py-4">
-                      <span className={`badge ${c.activo ? 'badge-green' : 'badge-red'}`}>{c.activo ? 'Activo' : 'Inactivo'}</span>
-                    </td>
-                    <td className="px-5 py-4">
-                      <button onClick={() => toggleActivo(c.id, c.activo)}
-                        className="text-xs font-dm text-white/40 hover:text-white transition-colors border border-white/10 px-3 py-1.5 rounded-lg hover:border-white/20">
-                        {c.activo ? 'Desactivar' : 'Activar'}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-    </DashboardLayout>
+        <div style={{background:'rgba(13,20,38,0.7)',backdropFilter:'blur(20px)',border:'1px solid rgba(255,255,255,0.07)',borderRadius:16,padding:'8px'}}>
+          {loading?(
+            <div style={{padding:'40px',textAlign:'center'}}>
+              <div className="spinner" style={{margin:'0 auto'}}/>
+            </div>
+          ):usuarios.length===0?(
+            <div style={{textAlign:'center',padding:'48px 0'}}>
+              <div style={{fontSize:'2rem',marginBottom:8}}>👥</div>
+              <p style={{fontFamily:'DM Sans,sans-serif',color:'rgba(255,255,255,0.28)',fontSize:'0.9rem',margin:0}}>No hay usuarios registrados aún</p>
+            </div>
+          ):(
+            <div>
+              {usuarios.map(u=>(
+                <div key={u.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 16px',borderRadius:10,transition:'background 0.15s'}}
+                  onMouseEnter={e=>(e.currentTarget as HTMLDivElement).style.background='rgba(255,255,255,0.025)'}
+                  onMouseLeave={e=>(e.currentTarget as HTMLDivElement).style.background='transparent'}>
+                  <div style={{display:'flex',alignItems:'center',gap:12}}>
+                    <div style={{width:36,height:36,borderRadius:'50%',background:'linear-gradient(135deg,#1A3A8F,#22C55E)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>
+                      <span style={{color:'#fff',fontSize:13,fontWeight:700}}>{u.nombre?.charAt(0)?.toUpperCase()||'?'}</span>
+                    </div>
+                    <div>
+                      <div style={{fontFamily:'DM Sans,sans-serif',fontWeight:600,color:'#fff',fontSize:'0.9rem'}}>{u.nombre||'Sin nombre'}</div>
+                      <div style={{fontFamily:'DM Sans,sans-serif',color:'rgba(255,255,255,0.35)',fontSize:'0.78rem'}}>{u.email}</div>
+                    </div>
+                  </div>
+                  <span style={{display:'inline-flex',alignItems:'center',padding:'4px 12px',borderRadius:9999,fontSize:'0.72rem',fontWeight:600,background:`${roleColors[u.rol]}20`,color:roleColors[u.rol],border:`1px solid ${roleColors[u.rol]}40`}}>
+                    {roleLabels[u.rol]||u.rol}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
   );
 }
+
