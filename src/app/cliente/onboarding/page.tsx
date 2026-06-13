@@ -278,7 +278,7 @@ export default function OnboardingPage() {
                 style={{ width: "100%" }}
                 value={data.nombreEmpresa}
                 onChange={(e) => update("nombreEmpresa", e.target.value)}
-                placeholder="Ej: Inmuebles Lara"
+                placeholder="Ej: Acme Realty"
                 disabled={data.empresaPorCrear}
               />
               <CheckboxRow
@@ -334,7 +334,7 @@ export default function OnboardingPage() {
                 style={{ width: "100%" }}
                 value={data.ubicacion}
                 onChange={(e) => update("ubicacion", e.target.value)}
-                placeholder="Ciudad, dirección o zona"
+                placeholder="Ej: Miami, FL"
               />
             </div>
 
@@ -346,7 +346,7 @@ export default function OnboardingPage() {
                 style={{ width: "100%" }}
                 value={data.horario}
                 onChange={(e) => update("horario", e.target.value)}
-                placeholder="Ej: Lunes a sábado, 8am - 6pm"
+                placeholder="Ej: Monday to Saturday, 8am - 6pm"
                 disabled={data.sinHorarioFijo}
               />
               <CheckboxRow
@@ -373,7 +373,7 @@ export default function OnboardingPage() {
                 style={{ width: "100%" }}
                 value={data.whatsappEmpresa}
                 onChange={(e) => update("whatsappEmpresa", e.target.value)}
-                placeholder="Ej: +58 412 0000000"
+                placeholder="Ej: +1 305 000 0000"
               />
             </div>
 
@@ -385,7 +385,7 @@ export default function OnboardingPage() {
                 style={{ width: "100%" }}
                 value={data.whatsappCliente}
                 onChange={(e) => update("whatsappCliente", e.target.value)}
-                placeholder="Ej: +58 412 0000000"
+                placeholder="Ej: +1 305 000 0000"
               />
             </div>
 
@@ -404,20 +404,27 @@ export default function OnboardingPage() {
                   />
                 ))}
               </div>
-              <div style={{ marginTop: 10 }}>
-                <span style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
-                  ¿Quieres que te creemos alguna red social nueva?
-                </span>
-                <div style={{ display: "flex", gap: 16, marginTop: 4, flexWrap: "wrap" }}>
-                  {REDES.map((red) => (
-                    <CheckboxRow
-                      key={red}
-                      checked={data.redesPorCrear.includes(red)}
-                      onChange={() => toggleEnArray("redesPorCrear", red)}
-                      label={red}
-                    />
-                  ))}
-                </div>
+            </div>
+
+            <div
+              className="card"
+              style={{ padding: 16, background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.25)" }}
+            >
+              <p style={{ fontSize: 14, fontWeight: 700, color: "#fff", marginBottom: 4 }}>
+                ¿No tienes alguna red social? Nosotros te la creamos
+              </p>
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 10 }}>
+                Marca las redes que quieres que el equipo de CreceCon cree y configure para tu negocio.
+              </p>
+              <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
+                {REDES.map((red) => (
+                  <CheckboxRow
+                    key={red}
+                    checked={data.redesPorCrear.includes(red)}
+                    onChange={() => toggleEnArray("redesPorCrear", red)}
+                    label={red}
+                  />
+                ))}
               </div>
             </div>
 
@@ -443,7 +450,7 @@ export default function OnboardingPage() {
                 style={{ width: "100%" }}
                 value={data.correosPorCrear}
                 onChange={(e) => update("correosPorCrear", e.target.value)}
-                placeholder="Ej: admin@, ventas@, soporte@..."
+                placeholder="Ej: admin@, sales@, support@..."
               />
             </div>
           </div>
