@@ -1,204 +1,518 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import { db } from '@/lib/firebase';
-import { collection, addDoc, getDocs, query, where, orderBy, doc, updateDoc, arrayUnion, serverTimestamp } from 'firebase/firestore';
-import { useAuth } from '@/context/AuthContext';
+import { useEffect, useState, useRef } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import { db } from "@/lib/firebase";
+import {
+  collection,
+  onSnapshot,
+  doc,
+  addDoc,
+  updateDoc,
+  query,
+  where,
+  orderBy,
+  arrayUnion,
+  serverTimestamp,
+  Timestamp,
+} from "firebase/firestore";
 
-const navItems = [
-  { href: '/cliente', label: 'Mi Proyecto', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> },
-  { href: '/cliente/onboarding', label: 'Onboarding', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/></svg> },
-  { href: '/cliente/soporte', label: 'Soporte', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
+// ============ TIPOS ============
+interface Mensaje {
+  autor: string;
+  rol: string;
+  texto: string;
+  fecha: Timestamp | null;
+}
+
+interface Ticket {
+  id: string;
+  asunto: string;
+  categoria: string;
+  estado: string;
+  clienteId: string;
+  clienteNombre: string;
+  mensajes: Mensaje[];
+  createdAt?: Timestamp;
+  updatedAt?: Timestamp;
+}
+
+const CATEGORIAS = [
+  "Soporte técnico",
+  "Duda sobre el proyecto",
+  "Solicitud de cambio",
+  "Facturación",
+  "Otro",
 ];
 
-export default function ClienteSoporte() {
-  const { user } = useAuth();
-  const [tickets, setTickets] = useState<any[]>([]);
-  const [activeTicket, setActiveTicket] = useState<any>(null);
-  const [showNew, setShowNew] = useState(false);
-  const [newTicket, setNewTicket] = useState({ asunto: '', mensaje: '' });
-  const [reply, setReply] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
+const ESTADO_COLOR: Record<string, string> = {
+  Abierto: "#2563EB",
+  "En proceso": "#F59E0B",
+  Resuelto: "#22C55E",
+};
 
-  const load = async () => {
-    if (!user) return;
-    const snap = await getDocs(query(collection(db, 'tickets'), where('clienteId', '==', user.uid), orderBy('createdAt', 'desc')));
-    setTickets(snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    setLoading(false);
-  };
+// ============ SIDEBAR ============
+function Sidebar({ active }: { active: string }) {
+  const { logout } = useAuth();
+  const router = useRouter();
 
-  useEffect(() => { load(); }, [user]);
+  const links = [
+    { href: "/cliente", label: "Dashboard", icon: "📊" },
+    { href: "/cliente/soporte", label: "Soporte", icon: "🎧" },
+  ];
 
-  const createTicket = async () => {
-    if (!user || !newTicket.asunto || !newTicket.mensaje) return;
-    setSending(true);
-    await addDoc(collection(db, 'tickets'), {
-      clienteId: user.uid,
-      clienteNombre: user.nombre,
-      asunto: newTicket.asunto,
-      mensaje: newTicket.mensaje,
-      estado: 'abierto',
-      respuestas: [],
-      createdAt: serverTimestamp(),
-    });
-    setNewTicket({ asunto: '', mensaje: '' });
-    setShowNew(false);
-    setSending(false);
-    await load();
-  };
-
-  const sendReply = async () => {
-    if (!user || !reply.trim() || !activeTicket) return;
-    setSending(true);
-    const respuesta = {
-      id: Date.now().toString(),
-      autorId: user.uid,
-      autorNombre: user.nombre,
-      mensaje: reply,
-      createdAt: new Date().toISOString(),
-    };
-    await updateDoc(doc(db, 'tickets', activeTicket.id), {
-      respuestas: arrayUnion(respuesta),
-    });
-    setReply('');
-    setActiveTicket((prev: any) => ({ ...prev, respuestas: [...(prev.respuestas || []), respuesta] }));
-    setSending(false);
-  };
-
-  const statusColor = (estado: string) => {
-    if (estado === 'abierto') return 'badge-yellow';
-    if (estado === 'en_proceso') return 'badge-blue';
-    return 'badge-green';
+  const handleLogout = async () => {
+    await logout();
+    router.push("/login");
   };
 
   return (
-    <DashboardLayout navItems={navItems} title="Cliente" roleColor="#F59E0B">
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="font-syne font-black text-2xl text-white mb-1">Centro de Soporte</h1>
-            <p className="font-dm text-white/40 text-sm">Crea tickets y comunícate con nuestro equipo</p>
+    <aside
+      style={{
+        width: 240,
+        position: "fixed",
+        top: 0,
+        left: 0,
+        height: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        padding: "24px 16px",
+        borderRight: "1px solid rgba(255,255,255,0.08)",
+        background: "rgba(5,8,20,0.6)",
+        backdropFilter: "blur(20px)",
+        zIndex: 50,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 8px", marginBottom: 32 }}>
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            background: "linear-gradient(135deg, #1A3A8F, #2563EB)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontFamily: "Syne, sans-serif",
+            fontWeight: 800,
+            color: "#fff",
+            fontSize: 18,
+          }}
+        >
+          C
+        </div>
+        <span style={{ fontFamily: "Syne, sans-serif", fontWeight: 800, fontSize: 18 }}>
+          <span style={{ color: "#fff" }}>Crece</span>
+          <span style={{ color: "#22C55E" }}>Con</span>
+        </span>
+      </div>
+
+      <nav style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+        {links.map((link) => {
+          const isActive = active === link.label;
+          return (
+            <div
+              key={link.href}
+              onClick={() => router.push(link.href)}
+              className="glass-hover"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "12px 14px",
+                borderRadius: 10,
+                fontSize: 14,
+                fontWeight: 600,
+                textDecoration: "none",
+                cursor: "pointer",
+                color: isActive ? "#fff" : "rgba(255,255,255,0.65)",
+                background: isActive ? "rgba(34,197,94,0.12)" : "transparent",
+                border: isActive ? "1px solid rgba(34,197,94,0.3)" : "1px solid transparent",
+                transition: "all 0.2s ease",
+              }}
+            >
+              <span style={{ fontSize: 16 }}>{link.icon}</span>
+              {link.label}
+            </div>
+          );
+        })}
+      </nav>
+
+      <button
+        onClick={handleLogout}
+        className="btn-outline"
+        style={{ width: "100%", justifyContent: "center", display: "flex", alignItems: "center", gap: 8 }}
+      >
+        🚪 Cerrar sesión
+      </button>
+    </aside>
+  );
+}
+
+// ============ FORMATEAR FECHA ============
+function formatFecha(ts: Timestamp | null | undefined) {
+  if (!ts || !ts.toDate) return "";
+  return ts.toDate().toLocaleString("es-VE", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+// ============ PAGINA PRINCIPAL ============
+export default function SoporteClientePage() {
+  const { user, firebaseUser, loading } = useAuth();
+  const router = useRouter();
+  const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [loadingTickets, setLoadingTickets] = useState(true);
+  const [ticketActivo, setTicketActivo] = useState<Ticket | null>(null);
+  const [mostrarNuevo, setMostrarNuevo] = useState(false);
+
+  // formulario nuevo ticket
+  const [nuevoAsunto, setNuevoAsunto] = useState("");
+  const [nuevaCategoria, setNuevaCategoria] = useState(CATEGORIAS[0]);
+  const [nuevoMensaje, setNuevoMensaje] = useState("");
+  const [creando, setCreando] = useState(false);
+
+  // respuesta
+  const [respuesta, setRespuesta] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const mensajesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!loading && (!user || !firebaseUser)) {
+      router.push("/login");
+    }
+  }, [user, firebaseUser, loading, router]);
+
+  useEffect(() => {
+    if (!firebaseUser) return;
+    const q = query(
+      collection(db, "tickets"),
+      where("clienteId", "==", firebaseUser.uid),
+      orderBy("updatedAt", "desc")
+    );
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const data: Ticket[] = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Ticket[];
+        setTickets(data);
+        setLoadingTickets(false);
+
+        // si hay un ticket activo, sincronizarlo con la nueva data
+        if (ticketActivo) {
+          const actualizado = data.find((t) => t.id === ticketActivo.id);
+          if (actualizado) setTicketActivo(actualizado);
+        }
+      },
+      (err) => {
+        console.error("Error leyendo tickets:", err);
+        setLoadingTickets(false);
+      }
+    );
+    return () => unsub();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [firebaseUser]);
+
+  useEffect(() => {
+    mensajesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [ticketActivo?.mensajes?.length]);
+
+  const crearTicket = async () => {
+    if (!firebaseUser || !nuevoAsunto.trim() || !nuevoMensaje.trim()) return;
+    setCreando(true);
+    try {
+      await addDoc(collection(db, "tickets"), {
+        asunto: nuevoAsunto.trim(),
+        categoria: nuevaCategoria,
+        estado: "Abierto",
+        clienteId: firebaseUser.uid,
+        clienteNombre: user?.nombre || "Cliente",
+        mensajes: [
+          {
+            autor: user?.nombre || "Cliente",
+            rol: "cliente",
+            texto: nuevoMensaje.trim(),
+            fecha: Timestamp.now(),
+          },
+        ],
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      setNuevoAsunto("");
+      setNuevoMensaje("");
+      setNuevaCategoria(CATEGORIAS[0]);
+      setMostrarNuevo(false);
+    } catch (err) {
+      console.error("Error creando ticket:", err);
+      alert("Hubo un error al crear el ticket. Intenta de nuevo.");
+    } finally {
+      setCreando(false);
+    }
+  };
+
+  const enviarRespuesta = async () => {
+    if (!ticketActivo || !respuesta.trim() || !user) return;
+    setEnviando(true);
+    try {
+      await updateDoc(doc(db, "tickets", ticketActivo.id), {
+        mensajes: arrayUnion({
+          autor: user.nombre || "Cliente",
+          rol: "cliente",
+          texto: respuesta.trim(),
+          fecha: Timestamp.now(),
+        }),
+        updatedAt: serverTimestamp(),
+        ...(ticketActivo.estado === "Resuelto" ? { estado: "Abierto" } : {}),
+      });
+      setRespuesta("");
+    } catch (err) {
+      console.error("Error enviando respuesta:", err);
+      alert("Hubo un error al enviar tu mensaje.");
+    } finally {
+      setEnviando(false);
+    }
+  };
+
+  if (loading || !user || !firebaseUser) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div className="spinner" />
+      </div>
+    );
+  }
+
+  // ===================== VISTA DETALLE DE TICKET =====================
+  if (ticketActivo) {
+    return (
+      <div style={{ minHeight: "100vh" }}>
+        <Sidebar active="Soporte" />
+        <main style={{ marginLeft: 240, padding: 32, display: "flex", flexDirection: "column", height: "100vh" }}>
+          <div style={{ marginBottom: 16 }}>
+            <div
+              onClick={() => setTicketActivo(null)}
+              style={{ cursor: "pointer", fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 12, display: "inline-flex", alignItems: "center", gap: 6 }}
+            >
+              ← Volver a mis tickets
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 12 }}>
+              <div>
+                <h1 style={{ fontFamily: "Syne, sans-serif", fontWeight: 800, fontSize: 22, color: "#fff" }}>
+                  {ticketActivo.asunto}
+                </h1>
+                <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginTop: 4 }}>{ticketActivo.categoria}</p>
+              </div>
+              <span
+                className="badge-green"
+                style={{
+                  background: `${ESTADO_COLOR[ticketActivo.estado]}22`,
+                  color: ESTADO_COLOR[ticketActivo.estado],
+                  border: `1px solid ${ESTADO_COLOR[ticketActivo.estado]}55`,
+                }}
+              >
+                {ticketActivo.estado}
+              </span>
+            </div>
           </div>
-          <button onClick={() => setShowNew(true)} className="btn-primary px-5 py-2.5 rounded-xl font-syne font-bold text-sm">
-            + Nuevo ticket
+
+          {/* HILO DE MENSAJES */}
+          <div
+            className="card"
+            style={{
+              flex: 1,
+              overflowY: "auto",
+              padding: 20,
+              display: "flex",
+              flexDirection: "column",
+              gap: 12,
+              marginBottom: 16,
+            }}
+          >
+            {(ticketActivo.mensajes || []).map((m, i) => {
+              const esMio = m.rol === "cliente";
+              return (
+                <div
+                  key={i}
+                  style={{
+                    alignSelf: esMio ? "flex-end" : "flex-start",
+                    maxWidth: "75%",
+                    background: esMio ? "rgba(34,197,94,0.12)" : "rgba(255,255,255,0.05)",
+                    border: esMio ? "1px solid rgba(34,197,94,0.25)" : "1px solid rgba(255,255,255,0.08)",
+                    borderRadius: 14,
+                    padding: "10px 14px",
+                  }}
+                >
+                  <div style={{ fontSize: 12, fontWeight: 700, color: esMio ? "#22C55E" : "#60A5FA", marginBottom: 4 }}>
+                    {esMio ? "Tú" : m.autor || "CreceCon"}
+                  </div>
+                  <div style={{ fontSize: 14, color: "rgba(255,255,255,0.9)", whiteSpace: "pre-wrap" }}>{m.texto}</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 6 }}>{formatFecha(m.fecha)}</div>
+                </div>
+              );
+            })}
+            <div ref={mensajesEndRef} />
+          </div>
+
+          {/* RESPONDER */}
+          {ticketActivo.estado === "Resuelto" && (
+            <div style={{ fontSize: 12, color: "#22C55E", marginBottom: 8 }}>
+              ✓ Este ticket fue marcado como resuelto. Si respondes, se reabrirá automáticamente.
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 10 }}>
+            <input
+              type="text"
+              className="input-field"
+              style={{ flex: 1 }}
+              value={respuesta}
+              onChange={(e) => setRespuesta(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !enviando) enviarRespuesta();
+              }}
+              placeholder="Escribe tu mensaje..."
+            />
+            <button onClick={enviarRespuesta} className="btn-primary" disabled={enviando || !respuesta.trim()}>
+              {enviando ? "..." : "Enviar"}
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // ===================== VISTA LISTA DE TICKETS =====================
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      <Sidebar active="Soporte" />
+      <main style={{ marginLeft: 240, padding: 32 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 16, marginBottom: 28 }}>
+          <div>
+            <h1 style={{ fontFamily: "Syne, sans-serif", fontWeight: 800, fontSize: 28, color: "#fff" }}>
+              Centro de <span className="gradient-text">Soporte</span>
+            </h1>
+            <p style={{ color: "rgba(255,255,255,0.5)", marginTop: 4, fontSize: 14 }}>
+              Crea un ticket si tienes dudas, problemas o solicitudes sobre tu proyecto.
+            </p>
+          </div>
+          <button onClick={() => setMostrarNuevo(!mostrarNuevo)} className="btn-primary">
+            {mostrarNuevo ? "✕ Cancelar" : "+ Nuevo ticket"}
           </button>
         </div>
 
-        {/* New ticket modal */}
-        {showNew && (
-          <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
-            <div className="w-full max-w-lg card space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="font-syne font-bold text-white text-xl">Nuevo ticket</h2>
-                <button onClick={() => setShowNew(false)} className="text-white/40 hover:text-white">✕</button>
+        {/* FORMULARIO NUEVO TICKET */}
+        {mostrarNuevo && (
+          <div className="card" style={{ padding: 24, marginBottom: 24, display: "flex", flexDirection: "column", gap: 14 }}>
+            <h2 style={{ fontFamily: "Syne, sans-serif", fontWeight: 700, fontSize: 16, color: "#fff" }}>Nuevo ticket</h2>
+
+            <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 14 }}>
+              <div>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.7)", display: "block", marginBottom: 6 }}>
+                  Asunto
+                </label>
+                <input
+                  type="text"
+                  className="input-field"
+                  style={{ width: "100%" }}
+                  value={nuevoAsunto}
+                  onChange={(e) => setNuevoAsunto(e.target.value)}
+                  placeholder="Ej: Quiero cambiar el texto de la sección de inicio"
+                />
               </div>
               <div>
-                <label className="block text-xs font-dm text-white/40 mb-2 uppercase tracking-wider">Asunto</label>
-                <input className="input-field" placeholder="Describe brevemente tu consulta"
-                  value={newTicket.asunto} onChange={e => setNewTicket({ ...newTicket, asunto: e.target.value })} />
-              </div>
-              <div>
-                <label className="block text-xs font-dm text-white/40 mb-2 uppercase tracking-wider">Mensaje</label>
-                <textarea rows={4} className="input-field resize-none" placeholder="Explica en detalle tu consulta o problema..."
-                  value={newTicket.mensaje} onChange={e => setNewTicket({ ...newTicket, mensaje: e.target.value })} />
-              </div>
-              <div className="flex gap-3">
-                <button onClick={createTicket} disabled={sending} className="btn-primary flex-1 py-3 rounded-xl font-syne font-bold text-sm disabled:opacity-50">
-                  {sending ? 'Enviando...' : 'Crear ticket'}
-                </button>
-                <button onClick={() => setShowNew(false)} className="btn-outline px-6 py-3 rounded-xl font-dm text-sm">Cancelar</button>
+                <label style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.7)", display: "block", marginBottom: 6 }}>
+                  Categoría
+                </label>
+                <select
+                  className="input-field"
+                  style={{ width: "100%" }}
+                  value={nuevaCategoria}
+                  onChange={(e) => setNuevaCategoria(e.target.value)}
+                >
+                  {CATEGORIAS.map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
+
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.7)", display: "block", marginBottom: 6 }}>
+                Mensaje
+              </label>
+              <textarea
+                className="input-field"
+                style={{ width: "100%", minHeight: 100, resize: "vertical" }}
+                value={nuevoMensaje}
+                onChange={(e) => setNuevoMensaje(e.target.value)}
+                placeholder="Describe tu duda, problema o solicitud con detalle"
+              />
+            </div>
+
+            <button
+              onClick={crearTicket}
+              className="btn-primary"
+              disabled={creando || !nuevoAsunto.trim() || !nuevoMensaje.trim()}
+              style={{ alignSelf: "flex-start" }}
+            >
+              {creando ? "Creando..." : "Crear ticket"}
+            </button>
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Ticket list */}
-          <div className="space-y-3">
-            {loading ? (
-              <div className="text-center py-12 text-white/30 font-dm">Cargando tickets...</div>
-            ) : tickets.length === 0 ? (
-              <div className="card text-center py-12">
-                <div className="text-4xl mb-3">🎫</div>
-                <p className="font-dm text-white/40 text-sm">No tienes tickets aún</p>
-              </div>
-            ) : tickets.map((ticket: any) => (
-              <div key={ticket.id}
-                onClick={() => setActiveTicket(ticket)}
-                className={`card cursor-pointer transition-all glass-hover ${activeTicket?.id === ticket.id ? 'border-[#F59E0B]/30' : ''}`}>
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex-1 min-w-0">
-                    <div className="font-syne font-semibold text-white text-sm mb-1 truncate">{ticket.asunto}</div>
-                    <div className="font-dm text-white/40 text-xs truncate">{ticket.mensaje}</div>
-                  </div>
-                  <span className={`badge flex-shrink-0 ${statusColor(ticket.estado)}`}>
-                    {ticket.estado?.replace('_', ' ')}
-                  </span>
-                </div>
-                <div className="mt-2 text-xs font-dm text-white/20">
-                  {ticket.respuestas?.length || 0} respuestas
-                </div>
-              </div>
-            ))}
+        {/* LISTA DE TICKETS */}
+        {loadingTickets ? (
+          <div style={{ display: "flex", justifyContent: "center", padding: 60 }}>
+            <div className="spinner" />
           </div>
-
-          {/* Chat view */}
-          {activeTicket && (
-            <div className="card flex flex-col" style={{ minHeight: '400px' }}>
-              <div className="flex items-start justify-between mb-4 pb-4 border-b border-white/5">
-                <div>
-                  <h3 className="font-syne font-bold text-white">{activeTicket.asunto}</h3>
-                  <span className={`badge mt-1 ${statusColor(activeTicket.estado)}`}>{activeTicket.estado?.replace('_', ' ')}</span>
-                </div>
-                <button onClick={() => setActiveTicket(null)} className="text-white/30 hover:text-white text-lg">✕</button>
-              </div>
-
-              <div className="flex-1 space-y-3 overflow-y-auto mb-4" style={{ maxHeight: '300px' }}>
-                {/* Original message */}
-                <div className="flex gap-3">
-                  <div className="w-7 h-7 rounded-full bg-[#F59E0B] flex items-center justify-center text-xs font-bold text-black flex-shrink-0">
-                    {user?.nombre?.charAt(0)}
-                  </div>
-                  <div className="bg-white/5 rounded-xl p-3 flex-1">
-                    <div className="font-dm text-xs text-white/40 mb-1">{user?.nombre} — mensaje original</div>
-                    <div className="font-dm text-sm text-white">{activeTicket.mensaje}</div>
-                  </div>
-                </div>
-
-                {/* Replies */}
-                {activeTicket.respuestas?.map((r: any) => (
-                  <div key={r.id} className={`flex gap-3 ${r.autorId === user?.uid ? 'flex-row-reverse' : ''}`}>
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
-                      r.autorId === user?.uid ? 'bg-[#F59E0B] text-black' : 'bg-[#22C55E] text-white'
-                    }`}>
-                      {r.autorNombre?.charAt(0)}
+        ) : tickets.length === 0 ? (
+          <div className="card" style={{ padding: 40, textAlign: "center" }}>
+            <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14 }}>
+              No tienes tickets todavía. Crea uno si necesitas ayuda con tu proyecto.
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {tickets.map((t) => {
+              const ultimoMensaje = t.mensajes?.[t.mensajes.length - 1];
+              return (
+                <div
+                  key={t.id}
+                  onClick={() => setTicketActivo(t)}
+                  className="card glass-hover"
+                  style={{ padding: 18, cursor: "pointer", borderLeft: `3px solid ${ESTADO_COLOR[t.estado] || "#2563EB"}` }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+                    <div>
+                      <h3 style={{ fontFamily: "Syne, sans-serif", fontWeight: 700, fontSize: 15, color: "#fff" }}>{t.asunto}</h3>
+                      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginTop: 2 }}>{t.categoria}</p>
                     </div>
-                    <div className={`rounded-xl p-3 max-w-xs ${r.autorId === user?.uid ? 'bg-[#F59E0B]/10 border border-[#F59E0B]/20' : 'bg-white/5'}`}>
-                      <div className="font-dm text-xs text-white/40 mb-1">{r.autorNombre}</div>
-                      <div className="font-dm text-sm text-white">{r.mensaje}</div>
-                    </div>
+                    <span
+                      className="badge-green"
+                      style={{
+                        background: `${ESTADO_COLOR[t.estado]}22`,
+                        color: ESTADO_COLOR[t.estado],
+                        border: `1px solid ${ESTADO_COLOR[t.estado]}55`,
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {t.estado}
+                    </span>
                   </div>
-                ))}
-              </div>
-
-              {/* Reply input */}
-              {activeTicket.estado !== 'resuelto' && (
-                <div className="flex gap-2 border-t border-white/5 pt-4">
-                  <input className="input-field flex-1 text-sm py-2.5" placeholder="Escribe tu respuesta..."
-                    value={reply} onChange={e => setReply(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && !e.shiftKey && sendReply()} />
-                  <button onClick={sendReply} disabled={sending || !reply.trim()}
-                    className="btn-primary px-4 py-2.5 rounded-xl font-syne font-bold text-sm disabled:opacity-50">
-                    →
-                  </button>
+                  {ultimoMensaje && (
+                    <p style={{ fontSize: 13, color: "rgba(255,255,255,0.6)", marginTop: 10, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <strong style={{ color: "rgba(255,255,255,0.8)" }}>{ultimoMensaje.rol === "cliente" ? "Tú" : ultimoMensaje.autor}:</strong>{" "}
+                      {ultimoMensaje.texto}
+                    </p>
+                  )}
+                  <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 6 }}>
+                    Actualizado: {formatFecha(t.updatedAt)}
+                  </p>
                 </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    </DashboardLayout>
+              );
+            })}
+          </div>
+        )}
+      </main>
+    </div>
   );
 }
