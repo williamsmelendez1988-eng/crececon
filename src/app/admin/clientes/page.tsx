@@ -58,6 +58,108 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID||'',
 };
 
+// ============ ETIQUETAS PARA MOSTRAR EL ONBOARDING ============
+const SERVICIOS_LABELS: Record<string,string> = {
+  web: 'Página web',
+  app: 'Aplicación móvil',
+  meta_ads: 'Campañas en Meta Ads',
+  google_ads: 'Campañas en Google Ads',
+  seo: 'SEO / Posicionamiento en Google',
+  diseno: 'Diseño gráfico',
+  video: 'Producción de video',
+  redes_mensual: 'Gestión mensual de redes sociales',
+};
+
+// ============ MODAL DE ONBOARDING ============
+function OnboardingModal({ usuario, onClose }: { usuario: any; onClose: () => void }) {
+  const ob = usuario.onboarding;
+
+  const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
+    <div style={{ marginBottom: 20 }}>
+      <h4 style={{ fontFamily:'Syne,sans-serif', fontWeight:700, fontSize:13, color:'#22C55E', textTransform:'uppercase', letterSpacing:0.5, marginBottom:10 }}>
+        {title}
+      </h4>
+      <div style={{ display:'flex', flexDirection:'column', gap:6 }}>{children}</div>
+    </div>
+  );
+
+  const Field = ({ label, value }: { label: string; value: any }) => {
+    if (value === undefined || value === null || value === '' || (Array.isArray(value) && value.length === 0)) return null;
+    const display = Array.isArray(value) ? value.join(', ') : (value === true ? 'Sí' : value === false ? '' : value);
+    if (!display) return null;
+    return (
+      <div style={{ fontSize:13, color:'rgba(255,255,255,0.8)' }}>
+        <span style={{ color:'rgba(255,255,255,0.45)' }}>{label}: </span>
+        <span style={{ color:'#fff', fontWeight:500 }}>{display}</span>
+      </div>
+    );
+  };
+
+  return (
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100,padding:16}}>
+      <div onClick={(e)=>e.stopPropagation()} className="card" style={{maxWidth:560,width:'100%',maxHeight:'85vh',overflowY:'auto',padding:28}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:20}}>
+          <div>
+            <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:20,color:'#fff',margin:0}}>
+              {usuario.nombre || 'Cliente'}
+            </h3>
+            <p style={{fontSize:13,color:'rgba(255,255,255,0.45)',margin:'4px 0 0'}}>{usuario.email}</p>
+          </div>
+          <button onClick={onClose} className="btn-outline" style={{padding:'6px 14px',fontSize:13}}>✕ Cerrar</button>
+        </div>
+
+        {!ob ? (
+          <div style={{textAlign:'center',padding:'30px 0',color:'rgba(255,255,255,0.4)',fontSize:14}}>
+            Este cliente aún no ha completado el onboarding.
+          </div>
+        ) : (
+          <>
+            <Section title="Negocio">
+              <Field label="Cliente" value={ob.nombreCliente} />
+              <Field label="Empresa" value={ob.empresaPorCrear ? '(CreceCon debe crear el nombre)' : ob.nombreEmpresa} />
+              <Field label="Rubro" value={ob.rubro === 'Otro' ? ob.rubroOtro : ob.rubro} />
+              <Field label="Descripción" value={ob.descripcionNegocio} />
+              <Field label="Ubicación" value={ob.ubicacion} />
+              <Field label="Horario" value={ob.sinHorarioFijo ? 'No tiene horario fijo' : ob.horario} />
+            </Section>
+
+            <Section title="Contacto y redes">
+              <Field label="WhatsApp empresa" value={ob.whatsappEmpresa} />
+              <Field label="WhatsApp cliente" value={ob.whatsappCliente} />
+              {ob.redesActuales && Object.entries(ob.redesActuales).map(([red,val])=> (
+                <Field key={red} label={red} value={val as string} />
+              ))}
+              <Field label="Redes por crear" value={ob.redesPorCrear} />
+              <Field label="Email de contacto" value={ob.emailContacto} />
+              <Field label="Correos a crear" value={ob.correosPorCrear} />
+            </Section>
+
+            <Section title="Servicios solicitados">
+              <Field label="Servicios" value={(ob.servicios||[]).map((s:string)=>SERVICIOS_LABELS[s]||s)} />
+              <Field label="Otro servicio" value={ob.servicioOtro} />
+            </Section>
+
+            <Section title="Branding">
+              <Field label="Logo" value={ob.logoEstado === 'tiene' ? 'El cliente ya tiene logo (lo enviará por WhatsApp)' : ob.logoEstado === 'crear' ? 'CreceCon debe crear el logo' : ''} />
+              <Field label="Colores" value={ob.coloresSugerencia ? 'Que los especialistas sugieran los colores' : ob.coloresMarca} />
+              <Field label="Referencia 1" value={ob.referencia1} />
+              <Field label="Referencia 2" value={ob.referencia2} />
+              <Field label="Fotos disponibles" value={ob.fotosDisponibles ? 'Sí, el cliente las enviará' : ''} />
+            </Section>
+
+            <Section title="Objetivos y notas">
+              <Field label="Objetivos" value={(ob.objetivos||[]).includes('Otro') ? [...ob.objetivos.filter((o:string)=>o!=='Otro'), ob.objetivoOtro].filter(Boolean) : ob.objetivos} />
+              <Field label="Sitio web actual" value={ob.sitioWebActual} />
+              <Field label="Notas adicionales" value={ob.notasAdicionales} />
+              <Field label="Confía en CreceCon" value={ob.dejarEnManosCreceCon ? 'Sí, para decisiones no especificadas' : ''} />
+            </Section>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ClientesPage() {
   const { user } = useAuth();
   const router = useRouter();
@@ -67,6 +169,7 @@ export default function ClientesPage() {
   const [form, setForm] = useState({ nombre:'', email:'', password:'', rol:'cliente', empresa:'' });
   const [creating, setCreating] = useState(false);
   const [msg, setMsg] = useState<{type:string,text:string}|null>(null);
+  const [onboardingCliente, setOnboardingCliente] = useState<any|null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -206,16 +309,31 @@ export default function ClientesPage() {
                       <div style={{fontFamily:'DM Sans,sans-serif',color:'rgba(255,255,255,0.35)',fontSize:'0.78rem'}}>{u.email}</div>
                     </div>
                   </div>
-                  <span style={{display:'inline-flex',alignItems:'center',padding:'4px 12px',borderRadius:9999,fontSize:'0.72rem',fontWeight:600,background:`${roleColors[u.rol]}20`,color:roleColors[u.rol],border:`1px solid ${roleColors[u.rol]}40`}}>
-                    {roleLabels[u.rol]||u.rol}
-                  </span>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    {u.rol==='cliente' && (
+                      <>
+                        <span style={{display:'inline-flex',alignItems:'center',padding:'4px 10px',borderRadius:9999,fontSize:'0.7rem',fontWeight:600,background:u.onboardingCompleto?'rgba(34,197,94,0.12)':'rgba(245,158,11,0.12)',color:u.onboardingCompleto?'#4ADE80':'#FBBF24',border:`1px solid ${u.onboardingCompleto?'rgba(34,197,94,0.3)':'rgba(245,158,11,0.3)'}`}}>
+                          {u.onboardingCompleto?'✓ Onboarding completo':'⏳ Onboarding pendiente'}
+                        </span>
+                        <button onClick={()=>setOnboardingCliente(u)} className="btn-outline" style={{padding:'5px 14px',fontSize:'0.78rem'}}>
+                          Ver info
+                        </button>
+                      </>
+                    )}
+                    <span style={{display:'inline-flex',alignItems:'center',padding:'4px 12px',borderRadius:9999,fontSize:'0.72rem',fontWeight:600,background:`${roleColors[u.rol]}20`,color:roleColors[u.rol],border:`1px solid ${roleColors[u.rol]}40`}}>
+                      {roleLabels[u.rol]||u.rol}
+                    </span>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
       </main>
+
+      {onboardingCliente && (
+        <OnboardingModal usuario={onboardingCliente} onClose={()=>setOnboardingCliente(null)} />
+      )}
     </div>
   );
 }
-
