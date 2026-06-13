@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, doc, setDoc, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, doc, setDoc, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
 
@@ -58,7 +58,6 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID||'',
 };
 
-// ============ ETIQUETAS PARA MOSTRAR EL ONBOARDING ============
 const SERVICIOS_LABELS: Record<string,string> = {
   web: 'Página web',
   app: 'Aplicación móvil',
@@ -70,7 +69,7 @@ const SERVICIOS_LABELS: Record<string,string> = {
   redes_mensual: 'Gestión mensual de redes sociales',
 };
 
-// ============ MODAL DE ONBOARDING ============
+// ============ MODAL ONBOARDING ============
 function OnboardingModal({ usuario, onClose }: { usuario: any; onClose: () => void }) {
   const ob = usuario.onboarding;
 
@@ -100,14 +99,11 @@ function OnboardingModal({ usuario, onClose }: { usuario: any; onClose: () => vo
       <div onClick={(e)=>e.stopPropagation()} className="card" style={{maxWidth:560,width:'100%',maxHeight:'85vh',overflowY:'auto',padding:28}}>
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:20}}>
           <div>
-            <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:20,color:'#fff',margin:0}}>
-              {usuario.nombre || 'Cliente'}
-            </h3>
+            <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:20,color:'#fff',margin:0}}>{usuario.nombre || 'Cliente'}</h3>
             <p style={{fontSize:13,color:'rgba(255,255,255,0.45)',margin:'4px 0 0'}}>{usuario.email}</p>
           </div>
           <button onClick={onClose} className="btn-outline" style={{padding:'6px 14px',fontSize:13}}>✕ Cerrar</button>
         </div>
-
         {!ob ? (
           <div style={{textAlign:'center',padding:'30px 0',color:'rgba(255,255,255,0.4)',fontSize:14}}>
             Este cliente aún no ha completado el onboarding.
@@ -122,23 +118,20 @@ function OnboardingModal({ usuario, onClose }: { usuario: any; onClose: () => vo
               <Field label="Ubicación" value={ob.ubicacion} />
               <Field label="Horario" value={ob.sinHorarioFijo ? 'No tiene horario fijo' : ob.horario} />
             </Section>
-
             <Section title="Contacto y redes">
               <Field label="WhatsApp empresa" value={ob.whatsappEmpresa} />
               <Field label="WhatsApp cliente" value={ob.whatsappCliente} />
-              {ob.redesActuales && Object.entries(ob.redesActuales).map(([red,val])=> (
+              {ob.redesActuales && Object.entries(ob.redesActuales).map(([red,val])=>(
                 <Field key={red} label={red} value={val as string} />
               ))}
               <Field label="Redes por crear" value={ob.redesPorCrear} />
               <Field label="Email de contacto" value={ob.emailContacto} />
               <Field label="Correos a crear" value={ob.correosPorCrear} />
             </Section>
-
             <Section title="Servicios solicitados">
               <Field label="Servicios" value={(ob.servicios||[]).map((s:string)=>SERVICIOS_LABELS[s]||s)} />
               <Field label="Otro servicio" value={ob.servicioOtro} />
             </Section>
-
             <Section title="Branding">
               <Field label="Logo" value={ob.logoEstado === 'tiene' ? 'El cliente ya tiene logo (lo enviará por WhatsApp)' : ob.logoEstado === 'crear' ? 'CreceCon debe crear el logo' : ''} />
               <Field label="Colores" value={ob.coloresSugerencia ? 'Que los especialistas sugieran los colores' : ob.coloresMarca} />
@@ -146,7 +139,6 @@ function OnboardingModal({ usuario, onClose }: { usuario: any; onClose: () => vo
               <Field label="Referencia 2" value={ob.referencia2} />
               <Field label="Fotos disponibles" value={ob.fotosDisponibles ? 'Sí, el cliente las enviará' : ''} />
             </Section>
-
             <Section title="Objetivos y notas">
               <Field label="Objetivos" value={(ob.objetivos||[]).includes('Otro') ? [...ob.objetivos.filter((o:string)=>o!=='Otro'), ob.objetivoOtro].filter(Boolean) : ob.objetivos} />
               <Field label="Sitio web actual" value={ob.sitioWebActual} />
@@ -160,21 +152,102 @@ function OnboardingModal({ usuario, onClose }: { usuario: any; onClose: () => vo
   );
 }
 
+// ============ MODAL PROGRESO SETTER ============
+function SetterProgresoModal({ usuario, cursos, onClose }: { usuario: any; cursos: any[]; onClose: () => void }) {
+  const completados: string[] = usuario.cursosCompletados || [];
+  const cursosActivos = cursos.filter((c: any) => c.activo);
+  const totalCompletados = completados.filter((id: string) => cursosActivos.find((c: any) => c.id === id)).length;
+  const porcentaje = cursosActivos.length > 0 ? Math.round((totalCompletados / cursosActivos.length) * 100) : 0;
+
+  return (
+    <div onClick={onClose} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',backdropFilter:'blur(4px)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100,padding:16}}>
+      <div onClick={(e)=>e.stopPropagation()} className="card" style={{maxWidth:520,width:'100%',maxHeight:'85vh',overflowY:'auto',padding:28}}>
+        <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:20}}>
+          <div>
+            <h3 style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:20,color:'#fff',margin:0}}>{usuario.nombre}</h3>
+            <p style={{fontSize:13,color:'rgba(255,255,255,0.45)',margin:'4px 0 0'}}>{usuario.email}</p>
+          </div>
+          <button onClick={onClose} className="btn-outline" style={{padding:'6px 14px',fontSize:13}}>✕ Cerrar</button>
+        </div>
+
+        {/* STATS */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12,marginBottom:20}}>
+          {[
+            { label:'Nivel', value: usuario.nivel || 1, color:'#A855F7' },
+            { label:'Puntos', value: usuario.puntos || 0, color:'#F59E0B' },
+            { label:'Leads', value: usuario.leadsConvertidos || 0, color:'#22C55E' },
+          ].map((s)=>(
+            <div key={s.label} style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.08)',borderRadius:12,padding:'14px',textAlign:'center'}}>
+              <div style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:22,color:s.color}}>{s.value}</div>
+              <div style={{fontSize:12,color:'rgba(255,255,255,0.5)',marginTop:4}}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* PROGRESO CURSOS */}
+        <div style={{marginBottom:20}}>
+          <div style={{display:'flex',justifyContent:'space-between',fontSize:13,marginBottom:8}}>
+            <span style={{color:'rgba(255,255,255,0.7)',fontWeight:600}}>Progreso en cursos</span>
+            <span style={{color:'#22C55E',fontWeight:700}}>{totalCompletados} / {cursosActivos.length} módulos</span>
+          </div>
+          <div style={{height:8,borderRadius:8,background:'rgba(255,255,255,0.06)',overflow:'hidden'}}>
+            <div style={{height:'100%',width:`${porcentaje}%`,background:'linear-gradient(90deg,#1A3A8F,#22C55E)',borderRadius:8,transition:'width 0.4s ease'}}/>
+          </div>
+          <div style={{textAlign:'right',fontSize:11,color:'rgba(255,255,255,0.4)',marginTop:4}}>{porcentaje}% completado</div>
+        </div>
+
+        {/* LISTA DE MODULOS */}
+        {cursosActivos.length === 0 ? (
+          <p style={{fontSize:13,color:'rgba(255,255,255,0.4)',textAlign:'center'}}>No hay módulos publicados todavía.</p>
+        ) : (
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {cursosActivos.map((curso: any) => {
+              const hecho = completados.includes(curso.id);
+              return (
+                <div key={curso.id} style={{display:'flex',alignItems:'center',gap:12,padding:'10px 14px',borderRadius:10,background:'rgba(255,255,255,0.03)',border:`1px solid ${hecho ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.06)'}`}}>
+                  <div style={{width:28,height:28,borderRadius:8,background:hecho?'linear-gradient(135deg,#16A34A,#22C55E)':'rgba(255,255,255,0.06)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:700,color:'#fff',flexShrink:0}}>
+                    {hecho ? '✓' : curso.orden}
+                  </div>
+                  <span style={{fontSize:13,color:hecho?'#fff':'rgba(255,255,255,0.5)',fontWeight:hecho?600:400,flex:1}}>
+                    Módulo {curso.orden}: {curso.titulo}
+                  </span>
+                  <span style={{fontSize:11,fontWeight:700,color:hecho?'#22C55E':'rgba(255,255,255,0.3)'}}>
+                    {hecho ? '✓ Completado' : 'Pendiente'}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============ PAGINA PRINCIPAL ============
 export default function ClientesPage() {
   const { user } = useAuth();
   const router = useRouter();
   const [usuarios, setUsuarios] = useState<any[]>([]);
+  const [cursos, setCursos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ nombre:'', email:'', password:'', rol:'cliente', empresa:'' });
   const [creating, setCreating] = useState(false);
   const [msg, setMsg] = useState<{type:string,text:string}|null>(null);
   const [onboardingCliente, setOnboardingCliente] = useState<any|null>(null);
+  const [setterProgreso, setSetterProgreso] = useState<any|null>(null);
 
   useEffect(() => {
     if (!user) return;
     if (user.rol !== 'admin') { router.push('/login'); return; }
     load();
+    // cargar cursos para el modal de setter
+    const unsub = onSnapshot(
+      query(collection(db, 'cursos'), orderBy('orden', 'asc')),
+      (snap) => setCursos(snap.docs.map(d => ({ id: d.id, ...d.data() })))
+    );
+    return () => unsub();
   }, [user]);
 
   const load = async () => {
@@ -200,7 +273,7 @@ export default function ClientesPage() {
         rol: form.rol,
         empresa: form.empresa||'',
         createdAt: new Date(),
-        ...(form.rol==='setter'?{puntos:0,nivel:1,leadsConvertidos:0,comisionMes:0,ranking:0}:{}),
+        ...(form.rol==='setter'?{puntos:0,nivel:1,leadsConvertidos:0,comisionMes:0,ranking:0,cursosCompletados:[]}:{}),
         ...(form.rol==='socio'?{porcentajeParticipacion:0,ingresosTotales:0,ingresosMes:0,clientesReferidos:0}:{}),
         ...(form.rol==='cliente'?{progreso:0,fase:'Pago',onboardingCompleto:false,proyectoNombre:form.empresa||'Proyecto'}:{}),
       });
@@ -297,7 +370,7 @@ export default function ClientesPage() {
           ):(
             <div>
               {usuarios.map(u=>(
-                <div key={u.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 16px',borderRadius:10,transition:'background 0.15s'}}
+                <div key={u.id} style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 16px',borderRadius:10,transition:'background 0.15s',flexWrap:'wrap',gap:8}}
                   onMouseEnter={e=>(e.currentTarget as HTMLDivElement).style.background='rgba(255,255,255,0.025)'}
                   onMouseLeave={e=>(e.currentTarget as HTMLDivElement).style.background='transparent'}>
                   <div style={{display:'flex',alignItems:'center',gap:12}}>
@@ -309,7 +382,7 @@ export default function ClientesPage() {
                       <div style={{fontFamily:'DM Sans,sans-serif',color:'rgba(255,255,255,0.35)',fontSize:'0.78rem'}}>{u.email}</div>
                     </div>
                   </div>
-                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
                     {u.rol==='cliente' && (
                       <>
                         <span style={{display:'inline-flex',alignItems:'center',padding:'4px 10px',borderRadius:9999,fontSize:'0.7rem',fontWeight:600,background:u.onboardingCompleto?'rgba(34,197,94,0.12)':'rgba(245,158,11,0.12)',color:u.onboardingCompleto?'#4ADE80':'#FBBF24',border:`1px solid ${u.onboardingCompleto?'rgba(34,197,94,0.3)':'rgba(245,158,11,0.3)'}`}}>
@@ -319,6 +392,11 @@ export default function ClientesPage() {
                           Ver info
                         </button>
                       </>
+                    )}
+                    {u.rol==='setter' && (
+                      <button onClick={()=>setSetterProgreso(u)} className="btn-outline" style={{padding:'5px 14px',fontSize:'0.78rem',borderColor:'#8B5CF6',color:'#C4B5FD'}}>
+                        📊 Ver progreso
+                      </button>
                     )}
                     <span style={{display:'inline-flex',alignItems:'center',padding:'4px 12px',borderRadius:9999,fontSize:'0.72rem',fontWeight:600,background:`${roleColors[u.rol]}20`,color:roleColors[u.rol],border:`1px solid ${roleColors[u.rol]}40`}}>
                       {roleLabels[u.rol]||u.rol}
@@ -333,6 +411,9 @@ export default function ClientesPage() {
 
       {onboardingCliente && (
         <OnboardingModal usuario={onboardingCliente} onClose={()=>setOnboardingCliente(null)} />
+      )}
+      {setterProgreso && (
+        <SetterProgresoModal usuario={setterProgreso} cursos={cursos} onClose={()=>setSetterProgreso(null)} />
       )}
     </div>
   );
