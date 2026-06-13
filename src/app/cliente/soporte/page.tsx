@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { db } from "@/lib/firebase";
@@ -13,7 +12,6 @@ import {
   updateDoc,
   query,
   where,
-  orderBy,
   arrayUnion,
   serverTimestamp,
   Timestamp,
@@ -187,13 +185,17 @@ export default function SoporteClientePage() {
     if (!firebaseUser) return;
     const q = query(
       collection(db, "tickets"),
-      where("clienteId", "==", firebaseUser.uid),
-      orderBy("updatedAt", "desc")
+      where("clienteId", "==", firebaseUser.uid)
     );
     const unsub = onSnapshot(
       q,
       (snap) => {
         const data: Ticket[] = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Ticket[];
+        data.sort((a, b) => {
+          const ta = a.updatedAt?.toMillis ? a.updatedAt.toMillis() : 0;
+          const tb = b.updatedAt?.toMillis ? b.updatedAt.toMillis() : 0;
+          return tb - ta;
+        });
         setTickets(data);
         setLoadingTickets(false);
 
