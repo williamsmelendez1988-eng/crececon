@@ -12,7 +12,6 @@ import {
   arrayUnion,
   query,
   orderBy,
-  getDoc,
 } from "firebase/firestore";
 
 // ============ TIPOS ============
@@ -150,36 +149,32 @@ function VideoProtegido({ url }: { url: string }) {
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-
     const bloquear = (e: Event) => e.preventDefault();
-
     el.addEventListener("contextmenu", bloquear);
-    el.addEventListener("dragstart", bloquear);
-
-    return () => {
-      el.removeEventListener("contextmenu", bloquear);
-      el.removeEventListener("dragstart", bloquear);
-    };
+    return () => el.removeEventListener("contextmenu", bloquear);
   }, []);
 
   return (
     <div
       ref={containerRef}
-      style={{ position: "relative", width: "100%", borderRadius: 14, overflow: "hidden", background: "#000" }}
+      onContextMenu={(e) => e.preventDefault()}
+      style={{
+        position: "relative",
+        width: "100%",
+        borderRadius: 14,
+        overflow: "hidden",
+        background: "#000",
+        userSelect: "none",
+      }}
     >
-      {/* Capa transparente encima del video para bloquear clic derecho y descarga */}
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          zIndex: 10,
-          background: "transparent",
-        }}
-        onContextMenu={(e) => e.preventDefault()}
-      />
       <iframe
         src={getEmbedUrl(url)}
-        style={{ width: "100%", aspectRatio: "16/9", border: "none", display: "block" }}
+        style={{
+          width: "100%",
+          aspectRatio: "16/9",
+          border: "none",
+          display: "block",
+        }}
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         allowFullScreen
       />
@@ -203,19 +198,16 @@ export default function SetterCursosPage() {
     }
   }, [user, loading, router]);
 
-  // Cargar cursos activos
   useEffect(() => {
     const q = query(collection(db, "cursos"), orderBy("orden", "asc"));
     const unsub = onSnapshot(q, (snap) => {
-      const data = snap.docs
-        .map((d) => ({ id: d.id, ...d.data() })) as Curso[];
+      const data = snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Curso[];
       setCursos(data.filter((c) => c.activo));
       setLoadingCursos(false);
     });
     return () => unsub();
   }, []);
 
-  // Cargar cursos completados del setter
   useEffect(() => {
     if (!firebaseUser) return;
     const unsub = onSnapshot(doc(db, "usuarios", firebaseUser.uid), (snap) => {
@@ -250,6 +242,10 @@ export default function SetterCursosPage() {
   // ===================== VISTA REPRODUCTOR =====================
   if (cursoActivo) {
     const completado = cursosCompletados.includes(cursoActivo.id);
+    const idx = cursos.findIndex((c) => c.id === cursoActivo.id);
+    const siguiente = cursos[idx + 1];
+    const puedeAvanzar = completado && siguiente;
+
     return (
       <div style={{ minHeight: "100vh" }}>
         <Sidebar active="Mis Cursos" />
@@ -266,7 +262,9 @@ export default function SetterCursosPage() {
               Módulo {cursoActivo.orden}: {cursoActivo.titulo}
             </h1>
             {cursoActivo.descripcion && (
-              <p style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", marginBottom: 20 }}>{cursoActivo.descripcion}</p>
+              <p style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", marginBottom: 20 }}>
+                {cursoActivo.descripcion}
+              </p>
             )}
 
             <VideoProtegido url={cursoActivo.videoUrl} />
@@ -286,23 +284,16 @@ export default function SetterCursosPage() {
                 </button>
               )}
 
-              {/* Siguiente módulo */}
-              {(() => {
-                const idx = cursos.findIndex((c) => c.id === cursoActivo.id);
-                const siguiente = cursos[idx + 1];
-                if (!siguiente) return null;
-                const desbloqueado = completado;
-                return (
-                  <button
-                    onClick={() => desbloqueado && setCursoActivo(siguiente)}
-                    className="btn-outline"
-                    disabled={!desbloqueado}
-                    style={{ opacity: desbloqueado ? 1 : 0.4, cursor: desbloqueado ? "pointer" : "not-allowed" }}
-                  >
-                    Siguiente módulo →
-                  </button>
-                );
-              })()}
+              {siguiente && (
+                <button
+                  onClick={() => puedeAvanzar && setCursoActivo(siguiente)}
+                  className="btn-outline"
+                  disabled={!puedeAvanzar}
+                  style={{ opacity: puedeAvanzar ? 1 : 0.4, cursor: puedeAvanzar ? "pointer" : "not-allowed" }}
+                >
+                  Siguiente módulo →
+                </button>
+              )}
             </div>
           </div>
         </main>
@@ -328,7 +319,6 @@ export default function SetterCursosPage() {
           </p>
         </div>
 
-        {/* PROGRESO GENERAL */}
         {cursos.length > 0 && (
           <div className="card" style={{ padding: 20, marginBottom: 24 }}>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: 14, marginBottom: 8 }}>
@@ -346,11 +336,12 @@ export default function SetterCursosPage() {
                 }}
               />
             </div>
-            <div style={{ textAlign: "right", fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 6 }}>{porcentaje}% completado</div>
+            <div style={{ textAlign: "right", fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 6 }}>
+              {porcentaje}% completado
+            </div>
           </div>
         )}
 
-        {/* LISTA DE CURSOS */}
         {loadingCursos ? (
           <div style={{ display: "flex", justifyContent: "center", padding: 60 }}>
             <div className="spinner" />
@@ -397,7 +388,10 @@ export default function SetterCursosPage() {
                       display: "flex",
                       alignItems: "center",
                       justifyContent: "center",
-                      fontSize: 20,
+                      fontSize: completado ? 20 : 18,
+                      fontFamily: "Syne, sans-serif",
+                      fontWeight: 800,
+                      color: "#fff",
                       flexShrink: 0,
                     }}
                   >
