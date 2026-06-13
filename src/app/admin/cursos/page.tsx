@@ -1,206 +1,449 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import { db } from '@/lib/firebase';
-import { collection, getDocs, addDoc, updateDoc, doc, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import { db } from "@/lib/firebase";
+import {
+  collection,
+  onSnapshot,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+  serverTimestamp,
+  query,
+  orderBy,
+} from "firebase/firestore";
 
-const navItems = [
-  { href: '/admin', label: 'Dashboard', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> },
-  { href: '/admin/clientes', label: 'Clientes', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg> },
-  { href: '/admin/cursos', label: 'Cursos LMS', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> },
-  { href: '/admin/leads', label: 'Leads / CRM', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg> },
-  { href: '/admin/tickets', label: 'Soporte', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
-];
+// ============ TIPOS ============
+interface Curso {
+  id: string;
+  titulo: string;
+  descripcion: string;
+  videoUrl: string;
+  orden: number;
+  activo: boolean;
+  createdAt?: any;
+}
 
-interface Leccion { id?: string; titulo: string; descripcion: string; videoUrl: string; duracion: number; orden: number; }
-interface Modulo { id?: string; titulo: string; orden: number; lecciones: Leccion[]; }
-interface Curso { id?: string; titulo: string; descripcion: string; activo: boolean; modulos: Modulo[]; }
+// ============ SIDEBAR ============
+function Sidebar({ active }: { active: string }) {
+  const { logout } = useAuth();
+  const router = useRouter();
 
-const emptyLeccion = (): Leccion => ({ titulo: '', descripcion: '', videoUrl: '', duracion: 10, orden: 0 });
-const emptyModulo = (): Modulo => ({ titulo: '', orden: 0, lecciones: [emptyLeccion()] });
-const emptyCurso = (): Curso => ({ titulo: '', descripcion: '', activo: true, modulos: [emptyModulo()] });
+  const links = [
+    { href: "/admin", label: "Dashboard", icon: "📊" },
+    { href: "/admin/clientes", label: "Clientes", icon: "👥" },
+    { href: "/admin/proyectos", label: "Proyectos", icon: "📁" },
+    { href: "/admin/leads", label: "CRM Leads", icon: "🎯" },
+    { href: "/admin/cursos", label: "Cursos LMS", icon: "🎓" },
+    { href: "/admin/tickets", label: "Soporte", icon: "🎧" },
+  ];
 
-export default function AdminCursos() {
-  const [cursos, setCursos] = useState<Curso[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState<Curso>(emptyCurso());
-  const [saving, setSaving] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
-
-  const load = async () => {
-    setLoading(true);
-    const snap = await getDocs(collection(db, 'cursos'));
-    setCursos(snap.docs.map(d => ({ id: d.id, ...d.data() } as Curso)));
-    setLoading(false);
-  };
-
-  useEffect(() => { load(); }, []);
-
-  const save = async () => {
-    setSaving(true);
-    try {
-      if (editId) {
-        await updateDoc(doc(db, 'cursos', editId), { ...form, updatedAt: serverTimestamp() });
-      } else {
-        await addDoc(collection(db, 'cursos'), { ...form, createdAt: serverTimestamp() });
-      }
-      setShowForm(false);
-      setForm(emptyCurso());
-      setEditId(null);
-      await load();
-    } catch (err) { console.error(err); }
-    setSaving(false);
-  };
-
-  const deleteCurso = async (id: string) => {
-    if (!confirm('¿Eliminar este curso?')) return;
-    await deleteDoc(doc(db, 'cursos', id));
-    await load();
-  };
-
-  const editCurso = (curso: Curso) => {
-    setForm(curso);
-    setEditId(curso.id || null);
-    setShowForm(true);
-  };
-
-  const addModulo = () => setForm({ ...form, modulos: [...form.modulos, { ...emptyModulo(), orden: form.modulos.length }] });
-  const addLeccion = (mi: number) => {
-    const mods = [...form.modulos];
-    mods[mi].lecciones.push({ ...emptyLeccion(), orden: mods[mi].lecciones.length });
-    setForm({ ...form, modulos: mods });
-  };
-  const updateModulo = (mi: number, field: string, val: any) => {
-    const mods = [...form.modulos];
-    (mods[mi] as any)[field] = val;
-    setForm({ ...form, modulos: mods });
-  };
-  const updateLeccion = (mi: number, li: number, field: string, val: any) => {
-    const mods = [...form.modulos];
-    (mods[mi].lecciones[li] as any)[field] = val;
-    setForm({ ...form, modulos: mods });
+  const handleLogout = async () => {
+    await logout();
+    router.push("/login");
   };
 
   return (
-    <DashboardLayout navItems={navItems} title="Administrador" roleColor="#22C55E">
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
+    <aside
+      style={{
+        width: 240,
+        position: "fixed",
+        top: 0,
+        left: 0,
+        height: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        padding: "24px 16px",
+        borderRight: "1px solid rgba(255,255,255,0.08)",
+        background: "rgba(5,8,20,0.6)",
+        backdropFilter: "blur(20px)",
+        zIndex: 50,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 8px", marginBottom: 32 }}>
+        <div
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            background: "linear-gradient(135deg, #1A3A8F, #2563EB)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontFamily: "Syne, sans-serif",
+            fontWeight: 800,
+            color: "#fff",
+            fontSize: 18,
+          }}
+        >
+          C
+        </div>
+        <span style={{ fontFamily: "Syne, sans-serif", fontWeight: 800, fontSize: 18 }}>
+          <span style={{ color: "#fff" }}>Crece</span>
+          <span style={{ color: "#22C55E" }}>Con</span>
+        </span>
+      </div>
+
+      <nav style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
+        {links.map((link) => {
+          const isActive = active === link.label;
+          return (
+            <div
+              key={link.href}
+              onClick={() => router.push(link.href)}
+              className="glass-hover"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "12px 14px",
+                borderRadius: 10,
+                fontSize: 14,
+                fontWeight: 600,
+                cursor: "pointer",
+                color: isActive ? "#fff" : "rgba(255,255,255,0.65)",
+                background: isActive ? "rgba(34,197,94,0.12)" : "transparent",
+                border: isActive ? "1px solid rgba(34,197,94,0.3)" : "1px solid transparent",
+                transition: "all 0.2s ease",
+              }}
+            >
+              <span style={{ fontSize: 16 }}>{link.icon}</span>
+              {link.label}
+            </div>
+          );
+        })}
+      </nav>
+
+      <button
+        onClick={handleLogout}
+        className="btn-outline"
+        style={{ width: "100%", justifyContent: "center", display: "flex", alignItems: "center", gap: 8 }}
+      >
+        🚪 Cerrar sesión
+      </button>
+    </aside>
+  );
+}
+
+// ============ MODAL CREAR / EDITAR CURSO ============
+function CursoModal({
+  curso,
+  onClose,
+  onSave,
+}: {
+  curso: Partial<Curso> | null;
+  onClose: () => void;
+  onSave: (data: Partial<Curso>) => Promise<void>;
+}) {
+  const [titulo, setTitulo] = useState(curso?.titulo || "");
+  const [descripcion, setDescripcion] = useState(curso?.descripcion || "");
+  const [videoUrl, setVideoUrl] = useState(curso?.videoUrl || "");
+  const [orden, setOrden] = useState(curso?.orden ?? 1);
+  const [activo, setActivo] = useState(curso?.activo ?? true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async () => {
+    if (!titulo.trim()) { setError("El título es obligatorio."); return; }
+    if (!videoUrl.trim()) { setError("La URL del video es obligatoria."); return; }
+    setSaving(true);
+    setError("");
+    try {
+      await onSave({ titulo, descripcion, videoUrl, orden: Number(orden), activo });
+      onClose();
+    } catch (err) {
+      console.error(err);
+      setError("Error al guardar el curso.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)",
+        backdropFilter: "blur(4px)", display: "flex", alignItems: "center",
+        justifyContent: "center", zIndex: 100, padding: 16,
+      }}
+    >
+      <div onClick={(e) => e.stopPropagation()} className="card" style={{ maxWidth: 520, width: "100%", padding: 28 }}>
+        <h3 style={{ fontFamily: "Syne, sans-serif", fontWeight: 800, fontSize: 20, color: "#fff", marginBottom: 20 }}>
+          {curso?.id ? "Editar curso" : "Nuevo curso"}
+        </h3>
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
-            <h1 className="font-syne font-black text-2xl text-white">Cursos LMS</h1>
-            <p className="font-dm text-white/40 text-sm">Gestiona los cursos de formación para setters</p>
+            <label style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.7)", display: "block", marginBottom: 6 }}>
+              Título del curso
+            </label>
+            <input
+              type="text"
+              className="input-field"
+              style={{ width: "100%" }}
+              value={titulo}
+              onChange={(e) => setTitulo(e.target.value)}
+              placeholder="Ej: Cómo conseguir tus primeros clientes"
+            />
           </div>
-          <button onClick={() => { setForm(emptyCurso()); setEditId(null); setShowForm(true); }}
-            className="btn-primary px-5 py-2.5 rounded-xl font-syne font-bold text-sm">
+
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.7)", display: "block", marginBottom: 6 }}>
+              Descripción
+            </label>
+            <textarea
+              className="input-field"
+              style={{ width: "100%", minHeight: 80, resize: "vertical" }}
+              value={descripcion}
+              onChange={(e) => setDescripcion(e.target.value)}
+              placeholder="Breve descripción de lo que aprenderá el setter en este módulo"
+            />
+          </div>
+
+          <div>
+            <label style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.7)", display: "block", marginBottom: 6 }}>
+              URL del video (YouTube, Vimeo o enlace directo)
+            </label>
+            <input
+              type="text"
+              className="input-field"
+              style={{ width: "100%" }}
+              value={videoUrl}
+              onChange={(e) => setVideoUrl(e.target.value)}
+              placeholder="https://www.youtube.com/watch?v=..."
+            />
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            <div>
+              <label style={{ fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.7)", display: "block", marginBottom: 6 }}>
+                Orden / Número de módulo
+              </label>
+              <input
+                type="number"
+                min={1}
+                className="input-field"
+                style={{ width: "100%" }}
+                value={orden}
+                onChange={(e) => setOrden(Number(e.target.value))}
+              />
+            </div>
+            <div style={{ display: "flex", alignItems: "flex-end", paddingBottom: 4 }}>
+              <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: "rgba(255,255,255,0.7)", cursor: "pointer" }}>
+                <input
+                  type="checkbox"
+                  checked={activo}
+                  onChange={(e) => setActivo(e.target.checked)}
+                  style={{ width: 16, height: 16, accentColor: "#22C55E" }}
+                />
+                Visible para setters
+              </label>
+            </div>
+          </div>
+        </div>
+
+        {error && (
+          <div style={{ marginTop: 12, padding: "8px 12px", borderRadius: 8, background: "rgba(239,68,68,0.1)", border: "1px solid rgba(239,68,68,0.3)", color: "#FCA5A5", fontSize: 13 }}>
+            {error}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: 12, marginTop: 24 }}>
+          <button onClick={onClose} className="btn-outline" style={{ flex: 1 }} disabled={saving}>Cancelar</button>
+          <button onClick={handleSubmit} className="btn-primary" style={{ flex: 1 }} disabled={saving}>
+            {saving ? "Guardando..." : "Guardar curso"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============ PAGINA PRINCIPAL ============
+export default function AdminCursosPage() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const [cursos, setCursos] = useState<Curso[]>([]);
+  const [loadingCursos, setLoadingCursos] = useState(true);
+  const [modalCurso, setModalCurso] = useState<Partial<Curso> | null | false>(false);
+
+  useEffect(() => {
+    if (!loading && (!user || user.rol !== "admin")) {
+      router.push("/login");
+    }
+  }, [user, loading, router]);
+
+  useEffect(() => {
+    const q = query(collection(db, "cursos"), orderBy("orden", "asc"));
+    const unsub = onSnapshot(q, (snap) => {
+      setCursos(snap.docs.map((d) => ({ id: d.id, ...d.data() })) as Curso[]);
+      setLoadingCursos(false);
+    }, (err) => {
+      console.error(err);
+      setLoadingCursos(false);
+    });
+    return () => unsub();
+  }, []);
+
+  const handleSave = async (data: Partial<Curso>) => {
+    if (modalCurso && (modalCurso as Curso).id) {
+      await updateDoc(doc(db, "cursos", (modalCurso as Curso).id), { ...data });
+    } else {
+      await addDoc(collection(db, "cursos"), { ...data, createdAt: serverTimestamp() });
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("¿Eliminar este curso permanentemente?")) return;
+    await deleteDoc(doc(db, "cursos", id));
+  };
+
+  const toggleActivo = async (curso: Curso) => {
+    await updateDoc(doc(db, "cursos", curso.id), { activo: !curso.activo });
+  };
+
+  if (loading || !user || user.rol !== "admin") {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div className="spinner" />
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ minHeight: "100vh" }}>
+      <Sidebar active="Cursos LMS" />
+
+      <main style={{ marginLeft: 240, padding: 32 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 16, marginBottom: 28 }}>
+          <div>
+            <h1 style={{ fontFamily: "Syne, sans-serif", fontWeight: 800, fontSize: 28, color: "#fff" }}>
+              Gestión de <span className="gradient-text">Cursos LMS</span>
+            </h1>
+            <p style={{ color: "rgba(255,255,255,0.5)", marginTop: 4, fontSize: 14 }}>
+              Crea y gestiona los módulos de formación para tus setters.
+            </p>
+          </div>
+          <button onClick={() => setModalCurso({})} className="btn-primary">
             + Nuevo curso
           </button>
         </div>
 
-        {/* Form Modal */}
-        {showForm && (
-          <div className="fixed inset-0 bg-black/80 z-50 flex items-start justify-center p-4 overflow-y-auto">
-            <div className="w-full max-w-3xl card my-8 space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="font-syne font-bold text-white text-xl">{editId ? 'Editar curso' : 'Nuevo curso'}</h2>
-                <button onClick={() => setShowForm(false)} className="text-white/40 hover:text-white text-xl">✕</button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-dm text-white/40 mb-2 uppercase tracking-wider">Título del curso</label>
-                  <input className="input-field" placeholder="Ej: Formación para Setters Nivel 1" value={form.titulo} onChange={e => setForm({ ...form, titulo: e.target.value })} />
-                </div>
-                <div className="flex items-end gap-3">
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input type="checkbox" checked={form.activo} onChange={e => setForm({ ...form, activo: e.target.checked })} className="w-4 h-4 accent-[#22C55E]" />
-                    <span className="text-sm font-dm text-white/60">Curso activo</span>
-                  </label>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-dm text-white/40 mb-2 uppercase tracking-wider">Descripción</label>
-                <textarea rows={2} className="input-field resize-none" placeholder="Descripción del curso..." value={form.descripcion} onChange={e => setForm({ ...form, descripcion: e.target.value })} />
-              </div>
-
-              {/* Módulos */}
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-syne font-semibold text-white">Módulos</h3>
-                  <button onClick={addModulo} className="btn-outline text-xs px-3 py-1.5 rounded-lg font-dm">+ Módulo</button>
-                </div>
-
-                {form.modulos.map((mod, mi) => (
-                  <div key={mi} className="border border-white/10 rounded-xl p-4 space-y-3 bg-white/2">
-                    <div className="flex items-center gap-3">
-                      <span className="font-syne font-bold text-[#22C55E] text-sm">Módulo {mi + 1}</span>
-                      <input className="input-field flex-1" placeholder="Título del módulo" value={mod.titulo} onChange={e => updateModulo(mi, 'titulo', e.target.value)} />
-                    </div>
-
-                    {mod.lecciones.map((lec, li) => (
-                      <div key={li} className="border border-white/5 rounded-lg p-3 space-y-2 bg-white/2 ml-4">
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-dm text-white/30">{mi + 1}.{li + 1}</span>
-                          <input className="input-field flex-1 text-sm py-2" placeholder="Título de la lección" value={lec.titulo} onChange={e => updateLeccion(mi, li, 'titulo', e.target.value)} />
-                        </div>
-                        <input className="input-field text-sm py-2" placeholder="URL del video de YouTube (puede ser oculto)" value={lec.videoUrl} onChange={e => updateLeccion(mi, li, 'videoUrl', e.target.value)} />
-                        <div className="grid grid-cols-2 gap-2">
-                          <input className="input-field text-sm py-2" placeholder="Descripción breve" value={lec.descripcion} onChange={e => updateLeccion(mi, li, 'descripcion', e.target.value)} />
-                          <input type="number" className="input-field text-sm py-2" placeholder="Duración (min)" value={lec.duracion} onChange={e => updateLeccion(mi, li, 'duracion', parseInt(e.target.value))} />
-                        </div>
-                      </div>
-                    ))}
-                    <button onClick={() => addLeccion(mi)} className="text-xs font-dm text-[#22C55E] hover:underline ml-4">+ Agregar lección</button>
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button onClick={save} disabled={saving} className="btn-primary flex-1 py-3 rounded-xl font-syne font-bold text-sm disabled:opacity-50">
-                  {saving ? 'Guardando...' : 'Guardar curso'}
-                </button>
-                <button onClick={() => setShowForm(false)} className="btn-outline px-6 py-3 rounded-xl font-dm text-sm">Cancelar</button>
-              </div>
-            </div>
+        {loadingCursos ? (
+          <div style={{ display: "flex", justifyContent: "center", padding: 60 }}>
+            <div className="spinner" />
           </div>
-        )}
-
-        {/* Courses List */}
-        {loading ? (
-          <div className="text-center py-20 text-white/30 font-dm">Cargando cursos...</div>
         ) : cursos.length === 0 ? (
-          <div className="card text-center py-16">
-            <div className="text-4xl mb-3">🎓</div>
-            <p className="font-syne font-bold text-white text-lg mb-2">Sin cursos todavía</p>
-            <p className="font-dm text-white/40 text-sm">Crea tu primer curso para los setters</p>
+          <div className="card" style={{ padding: 40, textAlign: "center" }}>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>🎓</div>
+            <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14 }}>
+              No hay cursos todavía. Crea el primer módulo para tus setters.
+            </p>
           </div>
         ) : (
-          <div className="grid gap-4">
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {cursos.map((curso) => (
-              <div key={curso.id} className="card glass-hover">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-syne font-bold text-white text-lg">{curso.titulo}</h3>
-                      <span className={`badge ${curso.activo ? 'badge-green' : 'badge-gray'}`}>{curso.activo ? 'Activo' : 'Inactivo'}</span>
-                    </div>
-                    <p className="font-dm text-white/40 text-sm mb-3">{curso.descripcion}</p>
-                    <div className="flex items-center gap-4 text-xs font-dm text-white/30">
-                      <span>📚 {curso.modulos?.length || 0} módulos</span>
-                      <span>🎬 {curso.modulos?.reduce((acc, m) => acc + (m.lecciones?.length || 0), 0)} lecciones</span>
-                    </div>
+              <div
+                key={curso.id}
+                className="card"
+                style={{
+                  padding: 20,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 16,
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  borderLeft: `3px solid ${curso.activo ? "#22C55E" : "rgba(255,255,255,0.1)"}`,
+                  opacity: curso.activo ? 1 : 0.6,
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: 16, flex: 1, minWidth: 0 }}>
+                  <div
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 12,
+                      background: "linear-gradient(135deg, #1A3A8F, #2563EB)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontFamily: "Syne, sans-serif",
+                      fontWeight: 800,
+                      fontSize: 18,
+                      color: "#fff",
+                      flexShrink: 0,
+                    }}
+                  >
+                    {curso.orden}
                   </div>
-                  <div className="flex gap-2 flex-shrink-0">
-                    <button onClick={() => editCurso(curso)} className="btn-outline text-xs px-3 py-2 rounded-lg font-dm">Editar</button>
-                    <button onClick={() => deleteCurso(curso.id!)} className="text-xs px-3 py-2 rounded-lg font-dm text-red-400 border border-red-500/20 hover:bg-red-500/10 transition-colors">Eliminar</button>
+                  <div style={{ minWidth: 0 }}>
+                    <h3 style={{ fontFamily: "Syne, sans-serif", fontWeight: 700, fontSize: 15, color: "#fff", margin: 0 }}>
+                      {curso.titulo}
+                    </h3>
+                    {curso.descripcion && (
+                      <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {curso.descripcion}
+                      </p>
+                    )}
+                    <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 4 }}>
+                      🎬 {curso.videoUrl}
+                    </p>
                   </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 700,
+                      color: curso.activo ? "#22C55E" : "rgba(255,255,255,0.4)",
+                      background: curso.activo ? "rgba(34,197,94,0.1)" : "rgba(255,255,255,0.04)",
+                      border: `1px solid ${curso.activo ? "rgba(34,197,94,0.3)" : "rgba(255,255,255,0.08)"}`,
+                      borderRadius: 20,
+                      padding: "4px 12px",
+                    }}
+                  >
+                    {curso.activo ? "Visible" : "Oculto"}
+                  </span>
+                  <button
+                    onClick={() => toggleActivo(curso)}
+                    className="btn-outline"
+                    style={{ padding: "6px 14px", fontSize: 12 }}
+                  >
+                    {curso.activo ? "Ocultar" : "Activar"}
+                  </button>
+                  <button
+                    onClick={() => setModalCurso(curso)}
+                    className="btn-outline"
+                    style={{ padding: "6px 14px", fontSize: 12 }}
+                  >
+                    ✏️ Editar
+                  </button>
+                  <button
+                    onClick={() => handleDelete(curso.id)}
+                    className="btn-outline"
+                    style={{ padding: "6px 14px", fontSize: 12, borderColor: "#EF4444", color: "#EF4444" }}
+                  >
+                    🗑️
+                  </button>
                 </div>
               </div>
             ))}
           </div>
         )}
-      </div>
-    </DashboardLayout>
+      </main>
+
+      {modalCurso !== false && (
+        <CursoModal
+          curso={modalCurso}
+          onClose={() => setModalCurso(false)}
+          onSave={handleSave}
+        />
+      )}
+    </div>
   );
 }
