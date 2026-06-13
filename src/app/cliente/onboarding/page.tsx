@@ -1,177 +1,691 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import DashboardLayout from '@/components/dashboard/DashboardLayout';
-import { db } from '@/lib/firebase';
-import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
-import { useAuth } from '@/context/AuthContext';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import { db } from "@/lib/firebase";
+import { doc, updateDoc } from "firebase/firestore";
 
-const navItems = [
-  { href: '/cliente', label: 'Mi Proyecto', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg> },
-  { href: '/cliente/onboarding', label: 'Onboarding', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg> },
-  { href: '/cliente/soporte', label: 'Soporte', icon: <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
+// ============ CATALOGOS ============
+const RUBROS = [
+  "Inmuebles",
+  "Carwash / Lavado de autos",
+  "Construcción / Remodelación",
+  "Servicios profesionales",
+  "Restaurante / Comida",
+  "Belleza y estética",
+  "Tienda / Retail",
+  "Salud",
+  "Educación",
+  "Otro",
 ];
 
-const STEPS = [
-  { id: 'empresa', label: 'Datos empresariales', icon: '🏢' },
-  { id: 'negocio', label: 'Tu negocio', icon: '💼' },
-  { id: 'identidad', label: 'Identidad de marca', icon: '🎨' },
-  { id: 'marketing', label: 'Marketing', icon: '📣' },
+const REDES = ["Instagram", "Facebook", "TikTok"];
+
+const SERVICIOS = [
+  { id: "web", label: "Página web", desc: "Sitio web completo para tu negocio" },
+  { id: "app", label: "Aplicación móvil", desc: "App para Android/iOS" },
+  { id: "meta_ads", label: "Campañas en Meta Ads", desc: "Anuncios en Facebook e Instagram" },
+  { id: "google_ads", label: "Campañas en Google Ads", desc: "Anuncios en buscador de Google" },
+  { id: "seo", label: "SEO / Posicionamiento en Google", desc: "Aparecer en los primeros resultados" },
+  { id: "diseno", label: "Diseño gráfico", desc: "Flyers, posts, branding, material visual" },
+  { id: "video", label: "Producción de video", desc: "Videos promocionales o para redes" },
+  { id: "redes_mensual", label: "Gestión mensual de redes sociales", desc: "Contenido y publicaciones recurrentes" },
 ];
 
-export default function ClienteOnboarding() {
-  const { user } = useAuth();
-  const [step, setStep] = useState(0);
-  const [saved, setSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [data, setData] = useState({
-    // Empresa
-    nombreEmpresa: '', direccion: '', telefono: '', correoEmpresa: '', ciudad: '', pais: '',
-    // Negocio
-    historia: '', servicios: '', productos: '', objetivos: '',
-    // Identidad
-    colores: '', mision: '', vision: '', valores: '',
-    // Marketing
-    instagram: '', facebook: '', tiktok: '', publicoObjetivo: '', competencia: '', referencias: '',
-  });
+const OBJETIVOS = [
+  "Conseguir más clientes",
+  "Agendar citas en línea",
+  "Vender productos online",
+  "Posicionarme en Google",
+  "Mejorar mi imagen de marca",
+  "Automatizar procesos del negocio",
+  "Otro",
+];
 
-  useEffect(() => {
-    if (!user) return;
-    const load = async () => {
-      const snap = await getDoc(doc(db, 'onboarding', user.uid));
-      if (snap.exists()) setData(snap.data() as typeof data);
-    };
-    load();
-  }, [user]);
+const TOTAL_PASOS = 5;
 
-  const update = (field: string, val: string) => setData(prev => ({ ...prev, [field]: val }));
+// ============ TIPO DE DATOS ============
+interface OnboardingData {
+  nombreCliente: string;
+  nombreEmpresa: string;
+  empresaPorCrear: boolean;
+  rubro: string;
+  rubroOtro: string;
+  descripcionNegocio: string;
+  ubicacion: string;
+  horario: string;
+  sinHorarioFijo: boolean;
+  whatsappEmpresa: string;
+  whatsappCliente: string;
+  redesActuales: Record<string, string>;
+  redesPorCrear: string[];
+  emailContacto: string;
+  correosPorCrear: string;
+  servicios: string[];
+  servicioOtro: string;
+  logoEstado: "tiene" | "crear" | "";
+  coloresMarca: string;
+  coloresSugerencia: boolean;
+  referencia1: string;
+  referencia2: string;
+  fotosDisponibles: boolean;
+  objetivos: string[];
+  objetivoOtro: string;
+  sitioWebActual: string;
+  notasAdicionales: string;
+  dejarEnManosCreceCon: boolean;
+}
 
-  const save = async () => {
-    if (!user) return;
-    setSaving(true);
-    await setDoc(doc(db, 'onboarding', user.uid), { ...data, clienteId: user.uid, updatedAt: serverTimestamp() }, { merge: true });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 3000);
+const DATA_INICIAL: OnboardingData = {
+  nombreCliente: "",
+  nombreEmpresa: "",
+  empresaPorCrear: false,
+  rubro: "",
+  rubroOtro: "",
+  descripcionNegocio: "",
+  ubicacion: "",
+  horario: "",
+  sinHorarioFijo: false,
+  whatsappEmpresa: "",
+  whatsappCliente: "",
+  redesActuales: {},
+  redesPorCrear: [],
+  emailContacto: "",
+  correosPorCrear: "",
+  servicios: [],
+  servicioOtro: "",
+  logoEstado: "",
+  coloresMarca: "",
+  coloresSugerencia: false,
+  referencia1: "",
+  referencia2: "",
+  fotosDisponibles: false,
+  objetivos: [],
+  objetivoOtro: "",
+  sitioWebActual: "",
+  notasAdicionales: "",
+  dejarEnManosCreceCon: false,
+};
+
+// ============ COMPONENTES AUXILIARES ============
+function Label({ children, optional }: { children: React.ReactNode; optional?: boolean }) {
+  return (
+    <label style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.85)", display: "block", marginBottom: 8 }}>
+      {children}{" "}
+      {optional && (
+        <span style={{ fontSize: 12, fontWeight: 500, color: "rgba(255,255,255,0.35)" }}>(opcional)</span>
+      )}
+    </label>
+  );
+}
+
+function CheckboxRow({
+  checked,
+  onChange,
+  label,
+}: {
+  checked: boolean;
+  onChange: (val: boolean) => void;
+  label: string;
+}) {
+  return (
+    <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, color: "rgba(255,255,255,0.7)", cursor: "pointer", marginTop: 6 }}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+        style={{ width: 16, height: 16, accentColor: "#22C55E" }}
+      />
+      {label}
+    </label>
+  );
+}
+
+// ============ PAGINA PRINCIPAL ============
+export default function OnboardingPage() {
+  const { user, loading } = useAuth();
+  const router = useRouter();
+  const [paso, setPaso] = useState(1);
+  const [data, setData] = useState<OnboardingData>(DATA_INICIAL);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState("");
+
+  const update = (campo: keyof OnboardingData, valor: any) => {
+    setData((prev) => ({ ...prev, [campo]: valor }));
   };
 
-  const input = (field: keyof typeof data, placeholder: string, type = 'text') => (
-    <input type={type} className="input-field" placeholder={placeholder}
-      value={data[field]} onChange={e => update(field, e.target.value)} />
-  );
+  const toggleEnArray = (campo: "servicios" | "objetivos" | "redesPorCrear", valor: string) => {
+    setData((prev) => {
+      const arr = prev[campo] as string[];
+      const nuevo = arr.includes(valor) ? arr.filter((v) => v !== valor) : [...arr, valor];
+      return { ...prev, [campo]: nuevo };
+    });
+  };
 
-  const textarea = (field: keyof typeof data, placeholder: string) => (
-    <textarea rows={3} className="input-field resize-none" placeholder={placeholder}
-      value={data[field]} onChange={e => update(field, e.target.value)} />
-  );
+  const updateRedActual = (red: string, valor: string) => {
+    setData((prev) => ({ ...prev, redesActuales: { ...prev.redesActuales, [red]: valor } }));
+  };
 
-  const label = (text: string) => (
-    <label className="block text-xs font-dm text-white/40 mb-2 uppercase tracking-wider">{text}</label>
-  );
+  const siguiente = () => {
+    setError("");
+    if (paso === 1) {
+      if (!data.nombreCliente.trim()) {
+        setError("Por favor ingresa tu nombre.");
+        return;
+      }
+      if (!data.empresaPorCrear && !data.nombreEmpresa.trim()) {
+        setError("Ingresa el nombre de tu empresa o marca la opción de que te ayudemos a crearlo.");
+        return;
+      }
+      if (!data.rubro) {
+        setError("Selecciona el rubro o categoría de tu negocio.");
+        return;
+      }
+    }
+    if (paso === 3 && data.servicios.length === 0 && !data.servicioOtro.trim()) {
+      setError("Selecciona al menos un servicio que necesites, o descríbelo en 'Otro'.");
+      return;
+    }
+    setPaso((p) => Math.min(p + 1, TOTAL_PASOS));
+  };
 
-  const steps = [
-    // Step 0: Empresa
-    <div key="empresa" className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>{label('Nombre de la empresa')}{input('nombreEmpresa', 'Tu empresa S.A.')}</div>
-        <div>{label('País')}{input('pais', 'Venezuela')}</div>
-        <div>{label('Ciudad')}{input('ciudad', 'Caracas')}</div>
-        <div>{label('Dirección')}{input('direccion', 'Av. Principal...')}</div>
-        <div>{label('Teléfono')}{input('telefono', '+58 412 000 0000')}</div>
-        <div>{label('Correo empresarial')}{input('correoEmpresa', 'info@tuempresa.com', 'email')}</div>
+  const anterior = () => {
+    setError("");
+    setPaso((p) => Math.max(p - 1, 1));
+  };
+
+  const finalizar = async () => {
+    if (!user) return;
+    setGuardando(true);
+    setError("");
+    try {
+      await updateDoc(doc(db, "usuarios", user.uid), {
+        onboarding: data,
+        onboardingCompleto: true,
+      });
+      router.push("/cliente");
+    } catch (err) {
+      console.error("Error guardando onboarding:", err);
+      setError("Hubo un error al guardar la información. Intenta de nuevo.");
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  if (loading || !user) {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div className="spinner" />
       </div>
-    </div>,
-
-    // Step 1: Negocio
-    <div key="negocio" className="space-y-4">
-      <div>{label('Historia de tu empresa')}{textarea('historia', 'Cuéntanos cómo empezó tu negocio, cuánto tiempo llevas...')}</div>
-      <div>{label('Servicios que ofreces')}{textarea('servicios', 'Describe detalladamente los servicios o productos que vendes...')}</div>
-      <div>{label('Productos principales')}{textarea('productos', 'Lista tus productos o servicios más importantes...')}</div>
-      <div>{label('Objetivos con CreceCon')}{textarea('objetivos', '¿Qué quieres lograr? ¿Cuántos clientes nuevos? ¿Qué ingresos?')}</div>
-    </div>,
-
-    // Step 2: Identidad
-    <div key="identidad" className="space-y-4">
-      <div>{label('Colores de tu marca (códigos hex o descripción)')}{input('colores', 'Ej: Azul #1A3A8F, Verde #22C55E')}</div>
-      <div>{label('Misión')}{textarea('mision', '¿Por qué existe tu empresa? ¿A quién ayuda?')}</div>
-      <div>{label('Visión')}{textarea('vision', '¿Dónde quieres estar en 5 años?')}</div>
-      <div>{label('Valores de la empresa')}{textarea('valores', 'Ej: Honestidad, innovación, servicio al cliente...')}</div>
-      <div className="bg-white/3 border border-white/10 rounded-xl p-4">
-        <p className="font-dm text-white/50 text-sm mb-2">📎 Logos, fotos y archivos</p>
-        <p className="font-dm text-white/30 text-xs">Envía tus archivos (logos, fotos, videos, PDFs) directamente por WhatsApp al <a href="https://wa.me/584128021091" className="text-[#22C55E] hover:underline" target="_blank" rel="noopener noreferrer">+58 412 802 1091</a> con tu nombre de empresa para que los agreguemos a tu proyecto.</p>
-      </div>
-    </div>,
-
-    // Step 3: Marketing
-    <div key="marketing" className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>{label('Instagram')}{input('instagram', '@tuempresa')}</div>
-        <div>{label('Facebook')}{input('facebook', 'facebook.com/tuempresa')}</div>
-        <div>{label('TikTok')}{input('tiktok', '@tuempresa')}</div>
-      </div>
-      <div>{label('Público objetivo')}{textarea('publicoObjetivo', '¿A quién le vendes? Edad, género, ubicación, intereses...')}</div>
-      <div>{label('Competencia principal')}{textarea('competencia', '¿Quiénes son tus competidores directos?')}</div>
-      <div>{label('Referencias visuales')}{textarea('referencias', 'Marcas o sitios web cuyo estilo te gusta (URLs o nombres)...')}</div>
-    </div>,
-  ];
+    );
+  }
 
   return (
-    <DashboardLayout navItems={navItems} title="Cliente" roleColor="#F59E0B">
-      <div className="max-w-3xl mx-auto space-y-8">
-        <div>
-          <h1 className="font-syne font-black text-2xl text-white mb-1">Onboarding</h1>
-          <p className="font-dm text-white/40 text-sm">Completa esta información para que podamos comenzar tu proyecto</p>
+    <div className="bg-gradient-mesh grid-pattern" style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "32px 16px" }}>
+      <div className="card" style={{ maxWidth: 640, width: "100%", padding: "36px 32px" }}>
+        {/* HEADER */}
+        <div style={{ marginBottom: 24 }}>
+          <h1 style={{ fontFamily: "Syne, sans-serif", fontWeight: 800, fontSize: 26, color: "#fff", marginBottom: 6 }}>
+            Cuéntanos sobre tu <span className="gradient-text">negocio</span>
+          </h1>
+          <p style={{ fontSize: 14, color: "rgba(255,255,255,0.5)" }}>
+            Esta información nos ayuda a empezar tu proyecto con todo lo necesario. Las preguntas marcadas como
+            opcionales puedes dejarlas en manos de nuestro equipo.
+          </p>
         </div>
 
-        {/* Step indicator */}
-        <div className="flex items-center gap-2">
-          {STEPS.map((s, i) => (
-            <button key={s.id} onClick={() => setStep(i)}
-              className={`flex-1 flex flex-col items-center gap-1 p-3 rounded-xl border transition-all text-xs font-dm ${
-                i === step ? 'border-[#F59E0B]/40 bg-[#F59E0B]/10 text-[#F59E0B]' :
-                i < step ? 'border-[#22C55E]/30 bg-[#22C55E]/5 text-[#22C55E]' :
-                'border-white/5 text-white/30'
-              }`}>
-              <span className="text-lg">{i < step ? '✓' : s.icon}</span>
-              <span className="hidden md:block text-center leading-tight">{s.label}</span>
-            </button>
+        {/* PROGRESO */}
+        <div style={{ display: "flex", gap: 6, marginBottom: 32 }}>
+          {Array.from({ length: TOTAL_PASOS }).map((_, i) => (
+            <div
+              key={i}
+              style={{
+                flex: 1,
+                height: 6,
+                borderRadius: 6,
+                background: i + 1 <= paso ? "linear-gradient(90deg, #1A3A8F, #22C55E)" : "rgba(255,255,255,0.08)",
+                transition: "background 0.3s ease",
+              }}
+            />
           ))}
         </div>
 
-        {/* Step content */}
-        <div className="card">
-          <div className="flex items-center gap-3 mb-6">
-            <span className="text-2xl">{STEPS[step].icon}</span>
-            <h2 className="font-syne font-bold text-white text-lg">{STEPS[step].label}</h2>
+        {/* ===================== PASO 1 ===================== */}
+        {paso === 1 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            <h2 style={{ fontFamily: "Syne, sans-serif", fontWeight: 700, fontSize: 18, color: "#fff" }}>
+              1. Tú y tu empresa
+            </h2>
+
+            <div>
+              <Label>Tu nombre completo</Label>
+              <input
+                type="text"
+                className="input-field"
+                style={{ width: "100%" }}
+                value={data.nombreCliente}
+                onChange={(e) => update("nombreCliente", e.target.value)}
+                placeholder="Ej: Juan Pérez"
+              />
+            </div>
+
+            <div>
+              <Label>Nombre de tu empresa o marca</Label>
+              <input
+                type="text"
+                className="input-field"
+                style={{ width: "100%" }}
+                value={data.nombreEmpresa}
+                onChange={(e) => update("nombreEmpresa", e.target.value)}
+                placeholder="Ej: Inmuebles Lara"
+                disabled={data.empresaPorCrear}
+              />
+              <CheckboxRow
+                checked={data.empresaPorCrear}
+                onChange={(v) => update("empresaPorCrear", v)}
+                label="Aún no tengo nombre definido, que CreceCon me ayude a crear uno"
+              />
+            </div>
+
+            <div>
+              <Label>Rubro o categoría de tu negocio</Label>
+              <select
+                className="input-field"
+                style={{ width: "100%" }}
+                value={data.rubro}
+                onChange={(e) => update("rubro", e.target.value)}
+              >
+                <option value="">Selecciona una opción</option>
+                {RUBROS.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+              {data.rubro === "Otro" && (
+                <input
+                  type="text"
+                  className="input-field"
+                  style={{ width: "100%", marginTop: 8 }}
+                  value={data.rubroOtro}
+                  onChange={(e) => update("rubroOtro", e.target.value)}
+                  placeholder="Especifica el rubro"
+                />
+              )}
+            </div>
+
+            <div>
+              <Label optional>Descripción breve de tu negocio</Label>
+              <textarea
+                className="input-field"
+                style={{ width: "100%", minHeight: 90, resize: "vertical" }}
+                value={data.descripcionNegocio}
+                onChange={(e) => update("descripcionNegocio", e.target.value)}
+                placeholder="¿A qué se dedica tu negocio? ¿Qué lo hace especial?"
+              />
+            </div>
+
+            <div>
+              <Label optional>Ubicación</Label>
+              <input
+                type="text"
+                className="input-field"
+                style={{ width: "100%" }}
+                value={data.ubicacion}
+                onChange={(e) => update("ubicacion", e.target.value)}
+                placeholder="Ciudad, dirección o zona"
+              />
+            </div>
+
+            <div>
+              <Label optional>Horario de atención</Label>
+              <input
+                type="text"
+                className="input-field"
+                style={{ width: "100%" }}
+                value={data.horario}
+                onChange={(e) => update("horario", e.target.value)}
+                placeholder="Ej: Lunes a sábado, 8am - 6pm"
+                disabled={data.sinHorarioFijo}
+              />
+              <CheckboxRow
+                checked={data.sinHorarioFijo}
+                onChange={(v) => update("sinHorarioFijo", v)}
+                label="No tengo un horario fijo / no aplica"
+              />
+            </div>
           </div>
-          {steps[step]}
-        </div>
+        )}
 
-        {/* Navigation */}
-        <div className="flex items-center justify-between gap-4">
-          <button onClick={() => setStep(Math.max(0, step - 1))} disabled={step === 0}
-            className="btn-outline px-6 py-3 rounded-xl font-dm text-sm disabled:opacity-30">
-            ← Anterior
-          </button>
+        {/* ===================== PASO 2 ===================== */}
+        {paso === 2 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            <h2 style={{ fontFamily: "Syne, sans-serif", fontWeight: 700, fontSize: 18, color: "#fff" }}>
+              2. Contacto y redes sociales
+            </h2>
 
-          <button onClick={save} disabled={saving}
-            className="btn-outline px-6 py-3 rounded-xl font-dm text-sm text-[#22C55E] border-[#22C55E]/30 hover:bg-[#22C55E]/10 disabled:opacity-50">
-            {saving ? 'Guardando...' : saved ? '✓ Guardado' : 'Guardar progreso'}
-          </button>
+            <div>
+              <Label>WhatsApp de la empresa</Label>
+              <input
+                type="text"
+                className="input-field"
+                style={{ width: "100%" }}
+                value={data.whatsappEmpresa}
+                onChange={(e) => update("whatsappEmpresa", e.target.value)}
+                placeholder="Ej: +58 412 0000000"
+              />
+            </div>
 
-          {step < STEPS.length - 1 ? (
-            <button onClick={() => setStep(Math.min(STEPS.length - 1, step + 1))}
-              className="btn-primary px-6 py-3 rounded-xl font-syne font-bold text-sm">
+            <div>
+              <Label>Tu WhatsApp personal (para coordinar el proyecto)</Label>
+              <input
+                type="text"
+                className="input-field"
+                style={{ width: "100%" }}
+                value={data.whatsappCliente}
+                onChange={(e) => update("whatsappCliente", e.target.value)}
+                placeholder="Ej: +58 412 0000000"
+              />
+            </div>
+
+            <div>
+              <Label optional>Redes sociales actuales (deja vacío si no tienes)</Label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {REDES.map((red) => (
+                  <input
+                    key={red}
+                    type="text"
+                    className="input-field"
+                    style={{ width: "100%" }}
+                    value={data.redesActuales[red] || ""}
+                    onChange={(e) => updateRedActual(red, e.target.value)}
+                    placeholder={`${red} (link o @usuario)`}
+                  />
+                ))}
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <span style={{ fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
+                  ¿Quieres que te creemos alguna red social nueva?
+                </span>
+                <div style={{ display: "flex", gap: 16, marginTop: 4, flexWrap: "wrap" }}>
+                  {REDES.map((red) => (
+                    <CheckboxRow
+                      key={red}
+                      checked={data.redesPorCrear.includes(red)}
+                      onChange={() => toggleEnArray("redesPorCrear", red)}
+                      label={red}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <Label optional>Email de contacto actual</Label>
+              <input
+                type="email"
+                className="input-field"
+                style={{ width: "100%" }}
+                value={data.emailContacto}
+                onChange={(e) => update("emailContacto", e.target.value)}
+                placeholder="correo@ejemplo.com"
+              />
+            </div>
+
+            <div>
+              <Label optional>
+                ¿Quieres que te creemos correos profesionales? (Ej: admin@tuempresa.com)
+              </Label>
+              <input
+                type="text"
+                className="input-field"
+                style={{ width: "100%" }}
+                value={data.correosPorCrear}
+                onChange={(e) => update("correosPorCrear", e.target.value)}
+                placeholder="Ej: admin@, ventas@, soporte@..."
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ===================== PASO 3 ===================== */}
+        {paso === 3 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            <h2 style={{ fontFamily: "Syne, sans-serif", fontWeight: 700, fontSize: 18, color: "#fff" }}>
+              3. ¿Qué servicios necesitas?
+            </h2>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginTop: -8 }}>
+              Selecciona todo lo que aplique. Puede ser solo uno o varios.
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {SERVICIOS.map((s) => {
+                const selected = data.servicios.includes(s.id);
+                return (
+                  <div
+                    key={s.id}
+                    onClick={() => toggleEnArray("servicios", s.id)}
+                    className="glass-hover"
+                    style={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: 12,
+                      padding: 14,
+                      borderRadius: 12,
+                      cursor: "pointer",
+                      border: selected ? "1px solid rgba(34,197,94,0.4)" : "1px solid rgba(255,255,255,0.06)",
+                      background: selected ? "rgba(34,197,94,0.08)" : "rgba(255,255,255,0.02)",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => toggleEnArray("servicios", s.id)}
+                      style={{ width: 18, height: 18, marginTop: 2, accentColor: "#22C55E" }}
+                    />
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: 14, color: "#fff" }}>{s.label}</div>
+                      <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>{s.desc}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div>
+              <Label optional>¿Algo más que necesites y no esté en la lista?</Label>
+              <textarea
+                className="input-field"
+                style={{ width: "100%", minHeight: 70, resize: "vertical" }}
+                value={data.servicioOtro}
+                onChange={(e) => update("servicioOtro", e.target.value)}
+                placeholder="Describe el servicio que necesitas"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ===================== PASO 4 ===================== */}
+        {paso === 4 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            <h2 style={{ fontFamily: "Syne, sans-serif", fontWeight: 700, fontSize: 18, color: "#fff" }}>
+              4. Branding
+            </h2>
+            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.5)", marginTop: -8 }}>
+              Si no tienes algo definido, no te preocupes — nuestro equipo lo crea por ti.
+            </p>
+
+            <div>
+              <Label optional>Logo de tu negocio</Label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <CheckboxRow
+                  checked={data.logoEstado === "tiene"}
+                  onChange={() => update("logoEstado", data.logoEstado === "tiene" ? "" : "tiene")}
+                  label="Ya tengo un logo (lo enviaré por WhatsApp)"
+                />
+                <CheckboxRow
+                  checked={data.logoEstado === "crear"}
+                  onChange={() => update("logoEstado", data.logoEstado === "crear" ? "" : "crear")}
+                  label="No tengo logo, que el equipo de CreceCon me cree uno"
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label optional>Colores de tu marca</Label>
+              <input
+                type="text"
+                className="input-field"
+                style={{ width: "100%" }}
+                value={data.coloresMarca}
+                onChange={(e) => update("coloresMarca", e.target.value)}
+                placeholder="Ej: Azul y dorado"
+                disabled={data.coloresSugerencia}
+              />
+              <CheckboxRow
+                checked={data.coloresSugerencia}
+                onChange={(v) => update("coloresSugerencia", v)}
+                label="No tengo preferencia, que nuestros especialistas sugieran los colores"
+              />
+            </div>
+
+            <div>
+              <Label optional>1-2 sitios web que te gusten como referencia de estilo</Label>
+              <input
+                type="text"
+                className="input-field"
+                style={{ width: "100%", marginBottom: 8 }}
+                value={data.referencia1}
+                onChange={(e) => update("referencia1", e.target.value)}
+                placeholder="Link de referencia 1"
+              />
+              <input
+                type="text"
+                className="input-field"
+                style={{ width: "100%" }}
+                value={data.referencia2}
+                onChange={(e) => update("referencia2", e.target.value)}
+                placeholder="Link de referencia 2"
+              />
+            </div>
+
+            <div>
+              <CheckboxRow
+                checked={data.fotosDisponibles}
+                onChange={(v) => update("fotosDisponibles", v)}
+                label="Tengo fotos de mi negocio/productos para enviar por WhatsApp o correo"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ===================== PASO 5 ===================== */}
+        {paso === 5 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+            <h2 style={{ fontFamily: "Syne, sans-serif", fontWeight: 700, fontSize: 18, color: "#fff" }}>
+              5. Objetivos y notas finales
+            </h2>
+
+            <div>
+              <Label optional>¿Qué quieres lograr con tu proyecto?</Label>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {OBJETIVOS.map((o) => (
+                  <CheckboxRow
+                    key={o}
+                    checked={data.objetivos.includes(o)}
+                    onChange={() => toggleEnArray("objetivos", o)}
+                    label={o}
+                  />
+                ))}
+              </div>
+              {data.objetivos.includes("Otro") && (
+                <input
+                  type="text"
+                  className="input-field"
+                  style={{ width: "100%", marginTop: 8 }}
+                  value={data.objetivoOtro}
+                  onChange={(e) => update("objetivoOtro", e.target.value)}
+                  placeholder="Especifica tu objetivo"
+                />
+              )}
+            </div>
+
+            <div>
+              <Label optional>Sitio web actual (si tienes)</Label>
+              <input
+                type="text"
+                className="input-field"
+                style={{ width: "100%" }}
+                value={data.sitioWebActual}
+                onChange={(e) => update("sitioWebActual", e.target.value)}
+                placeholder="https://..."
+              />
+            </div>
+
+            <div>
+              <Label optional>Notas adicionales o detalles específicos</Label>
+              <textarea
+                className="input-field"
+                style={{ width: "100%", minHeight: 90, resize: "vertical" }}
+                value={data.notasAdicionales}
+                onChange={(e) => update("notasAdicionales", e.target.value)}
+                placeholder="Cualquier detalle adicional sobre tu proyecto"
+              />
+            </div>
+
+            <div
+              className="card"
+              style={{ padding: 16, background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.25)" }}
+            >
+              <CheckboxRow
+                checked={data.dejarEnManosCreceCon}
+                onChange={(v) => update("dejarEnManosCreceCon", v)}
+                label="Confío en el criterio del equipo de CreceCon para las decisiones de diseño y estrategia que no especifiqué"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ERROR */}
+        {error && (
+          <div
+            style={{
+              marginTop: 16,
+              padding: "10px 14px",
+              borderRadius: 10,
+              background: "rgba(239,68,68,0.1)",
+              border: "1px solid rgba(239,68,68,0.3)",
+              color: "#FCA5A5",
+              fontSize: 13,
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+        {/* NAVEGACION */}
+        <div style={{ display: "flex", gap: 12, marginTop: 28 }}>
+          {paso > 1 && (
+            <button onClick={anterior} className="btn-outline" style={{ flex: 1 }} disabled={guardando}>
+              ← Atrás
+            </button>
+          )}
+          {paso < TOTAL_PASOS ? (
+            <button onClick={siguiente} className="btn-primary" style={{ flex: 1 }}>
               Siguiente →
             </button>
           ) : (
-            <button onClick={save} disabled={saving}
-              className="btn-primary px-6 py-3 rounded-xl font-syne font-bold text-sm disabled:opacity-50">
-              {saving ? 'Enviando...' : 'Enviar onboarding ✓'}
+            <button onClick={finalizar} className="btn-primary" style={{ flex: 1 }} disabled={guardando}>
+              {guardando ? "Guardando..." : "✓ Finalizar onboarding"}
             </button>
           )}
         </div>
+
+        <div style={{ textAlign: "center", marginTop: 16, fontSize: 12, color: "rgba(255,255,255,0.3)" }}>
+          Paso {paso} de {TOTAL_PASOS}
+        </div>
       </div>
-    </DashboardLayout>
+    </div>
   );
 }
