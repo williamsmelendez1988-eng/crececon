@@ -144,7 +144,7 @@ function CheckboxRow({
 
 // ============ PAGINA PRINCIPAL ============
 export default function OnboardingPage() {
-  const { user, loading } = useAuth();
+  const { user, firebaseUser, loading } = useAuth();
   const router = useRouter();
   const [paso, setPaso] = useState(1);
   const [data, setData] = useState<OnboardingData>(DATA_INICIAL);
@@ -196,11 +196,11 @@ export default function OnboardingPage() {
   };
 
   const finalizar = async () => {
-    if (!user) return;
+    if (!firebaseUser) return;
     setGuardando(true);
     setError("");
     try {
-      await updateDoc(doc(db, "usuarios", user.uid), {
+      await updateDoc(doc(db, "usuarios", firebaseUser.uid), {
         onboarding: data,
         onboardingCompleto: true,
       });
@@ -213,7 +213,7 @@ export default function OnboardingPage() {
     }
   };
 
-  if (loading || !user) {
+  if (loading || !user || !firebaseUser) {
     return (
       <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
         <div className="spinner" />
@@ -488,8 +488,8 @@ export default function OnboardingPage() {
                     <input
                       type="checkbox"
                       checked={selected}
-                      onChange={() => toggleEnArray("servicios", s.id)}
-                      style={{ width: 18, height: 18, marginTop: 2, accentColor: "#22C55E" }}
+                      onChange={() => {}}
+                      style={{ width: 18, height: 18, marginTop: 2, accentColor: "#22C55E", pointerEvents: "none" }}
                     />
                     <div>
                       <div style={{ fontWeight: 700, fontSize: 14, color: "#fff" }}>{s.label}</div>
