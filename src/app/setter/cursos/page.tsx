@@ -13,8 +13,13 @@ import {
   query,
   orderBy,
 } from "firebase/firestore";
+import SidebarNav from "@/components/SidebarNav";
 
-// ============ TIPOS ============
+const NAV_LINKS = [
+  { href: "/setter", label: "Dashboard", icon: "📊" },
+  { href: "/setter/cursos", label: "Mis Cursos", icon: "📚" },
+];
+
 interface Curso {
   id: string;
   titulo: string;
@@ -24,104 +29,6 @@ interface Curso {
   activo: boolean;
 }
 
-// ============ SIDEBAR ============
-function Sidebar({ active }: { active: string }) {
-  const { logout } = useAuth();
-  const router = useRouter();
-
-  const links = [
-    { href: "/setter", label: "Dashboard", icon: "📊" },
-    { href: "/setter/cursos", label: "Mis Cursos", icon: "🎓" },
-  ];
-
-  const handleLogout = async () => {
-    await logout();
-    router.push("/login");
-  };
-
-  return (
-    <aside
-      style={{
-        width: 240,
-        position: "fixed",
-        top: 0,
-        left: 0,
-        height: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        padding: "24px 16px",
-        borderRight: "1px solid rgba(255,255,255,0.08)",
-        background: "rgba(5,8,20,0.6)",
-        backdropFilter: "blur(20px)",
-        zIndex: 50,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 8px", marginBottom: 32 }}>
-        <div
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 10,
-            background: "linear-gradient(135deg, #1A3A8F, #2563EB)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontFamily: "Syne, sans-serif",
-            fontWeight: 800,
-            color: "#fff",
-            fontSize: 18,
-          }}
-        >
-          C
-        </div>
-        <span style={{ fontFamily: "Syne, sans-serif", fontWeight: 800, fontSize: 18 }}>
-          <span style={{ color: "#fff" }}>Crece</span>
-          <span style={{ color: "#22C55E" }}>Con</span>
-        </span>
-      </div>
-
-      <nav style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
-        {links.map((link) => {
-          const isActive = active === link.label;
-          return (
-            <div
-              key={link.href}
-              onClick={() => router.push(link.href)}
-              className="glass-hover"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 12,
-                padding: "12px 14px",
-                borderRadius: 10,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: "pointer",
-                color: isActive ? "#fff" : "rgba(255,255,255,0.65)",
-                background: isActive ? "rgba(34,197,94,0.12)" : "transparent",
-                border: isActive ? "1px solid rgba(34,197,94,0.3)" : "1px solid transparent",
-                transition: "all 0.2s ease",
-              }}
-            >
-              <span style={{ fontSize: 16 }}>{link.icon}</span>
-              {link.label}
-            </div>
-          );
-        })}
-      </nav>
-
-      <button
-        onClick={handleLogout}
-        className="btn-outline"
-        style={{ width: "100%", justifyContent: "center", display: "flex", alignItems: "center", gap: 8 }}
-      >
-        🚪 Cerrar sesión
-      </button>
-    </aside>
-  );
-}
-
-// ============ CONVERTIR URL DE YOUTUBE A EMBED ============
 function getEmbedUrl(url: string): string {
   try {
     if (url.includes("youtube.com/watch")) {
@@ -142,7 +49,6 @@ function getEmbedUrl(url: string): string {
   }
 }
 
-// ============ REPRODUCTOR PROTEGIDO ============
 function VideoProtegido({ url }: { url: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -158,23 +64,11 @@ function VideoProtegido({ url }: { url: string }) {
     <div
       ref={containerRef}
       onContextMenu={(e) => e.preventDefault()}
-      style={{
-        position: "relative",
-        width: "100%",
-        borderRadius: 14,
-        overflow: "hidden",
-        background: "#000",
-        userSelect: "none",
-      }}
+      style={{ position: "relative", width: "100%", borderRadius: 14, overflow: "hidden", background: "#000", userSelect: "none" }}
     >
       <iframe
         src={getEmbedUrl(url)}
-        style={{
-          width: "100%",
-          aspectRatio: "16/9",
-          border: "none",
-          display: "block",
-        }}
+        style={{ width: "100%", aspectRatio: "16/9", border: "none", display: "block" }}
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         allowFullScreen
       />
@@ -182,7 +76,6 @@ function VideoProtegido({ url }: { url: string }) {
   );
 }
 
-// ============ PAGINA PRINCIPAL ============
 export default function SetterCursosPage() {
   const { user, firebaseUser, loading } = useAuth();
   const router = useRouter();
@@ -247,9 +140,14 @@ export default function SetterCursosPage() {
     const puedeAvanzar = completado && siguiente;
 
     return (
-      <div style={{ minHeight: "100vh" }}>
-        <Sidebar active="Mis Cursos" />
-        <main style={{ marginLeft: 240, padding: 32 }}>
+      <div style={{ minHeight: "100vh", background: "#050814" }}>
+        <style>{`
+          @media (max-width: 768px) {
+            .panel-main { margin-left: 0 !important; padding: 80px 16px 32px !important; }
+          }
+        `}</style>
+        <SidebarNav links={NAV_LINKS} active="Mis Cursos" />
+        <main className="panel-main" style={{ marginLeft: 240, padding: 32 }}>
           <div
             onClick={() => setCursoActivo(null)}
             style={{ cursor: "pointer", fontSize: 13, color: "rgba(255,255,255,0.5)", marginBottom: 16, display: "inline-flex", alignItems: "center", gap: 6 }}
@@ -271,19 +169,12 @@ export default function SetterCursosPage() {
 
             <div style={{ marginTop: 20, display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
               {completado ? (
-                <span style={{ fontSize: 14, fontWeight: 700, color: "#22C55E" }}>
-                  ✓ Módulo completado
-                </span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: "#22C55E" }}>✔ Módulo completado</span>
               ) : (
-                <button
-                  onClick={() => marcarCompletado(cursoActivo.id)}
-                  className="btn-primary"
-                  disabled={marcando}
-                >
-                  {marcando ? "Guardando..." : "✓ Marcar como completado"}
+                <button onClick={() => marcarCompletado(cursoActivo.id)} className="btn-primary" disabled={marcando}>
+                  {marcando ? "Guardando..." : "✔ Marcar como completado"}
                 </button>
               )}
-
               {siguiente && (
                 <button
                   onClick={() => puedeAvanzar && setCursoActivo(siguiente)}
@@ -306,10 +197,15 @@ export default function SetterCursosPage() {
   const porcentaje = cursos.length > 0 ? Math.round((totalCompletados / cursos.length) * 100) : 0;
 
   return (
-    <div style={{ minHeight: "100vh" }}>
-      <Sidebar active="Mis Cursos" />
+    <div style={{ minHeight: "100vh", background: "#050814" }}>
+      <style>{`
+        @media (max-width: 768px) {
+          .panel-main { margin-left: 0 !important; padding: 80px 16px 32px !important; }
+        }
+      `}</style>
+      <SidebarNav links={NAV_LINKS} active="Mis Cursos" />
 
-      <main style={{ marginLeft: 240, padding: 32 }}>
+      <main className="panel-main" style={{ marginLeft: 240, padding: 32 }}>
         <div style={{ marginBottom: 28 }}>
           <h1 style={{ fontFamily: "Syne, sans-serif", fontWeight: 800, fontSize: 28, color: "#fff" }}>
             Mis <span className="gradient-text">Cursos</span>
@@ -326,15 +222,7 @@ export default function SetterCursosPage() {
               <span style={{ color: "#22C55E", fontWeight: 700 }}>{totalCompletados} / {cursos.length} módulos</span>
             </div>
             <div style={{ height: 10, borderRadius: 10, background: "rgba(255,255,255,0.06)", overflow: "hidden" }}>
-              <div
-                style={{
-                  height: "100%",
-                  width: `${porcentaje}%`,
-                  background: "linear-gradient(90deg, #1A3A8F, #22C55E)",
-                  borderRadius: 10,
-                  transition: "width 0.4s ease",
-                }}
-              />
+              <div style={{ height: "100%", width: `${porcentaje}%`, background: "linear-gradient(90deg, #1A3A8F, #22C55E)", borderRadius: 10, transition: "width 0.4s ease" }} />
             </div>
             <div style={{ textAlign: "right", fontSize: 12, color: "rgba(255,255,255,0.4)", marginTop: 6 }}>
               {porcentaje}% completado
@@ -348,7 +236,7 @@ export default function SetterCursosPage() {
           </div>
         ) : cursos.length === 0 ? (
           <div className="card" style={{ padding: 40, textAlign: "center" }}>
-            <div style={{ fontSize: 32, marginBottom: 12 }}>🎓</div>
+            <div style={{ fontSize: 32, marginBottom: 12 }}>📚</div>
             <p style={{ color: "rgba(255,255,255,0.5)", fontSize: 14 }}>
               Aún no hay módulos disponibles. El equipo de CreceCon los publicará pronto.
             </p>
@@ -395,7 +283,7 @@ export default function SetterCursosPage() {
                       flexShrink: 0,
                     }}
                   >
-                    {completado ? "✓" : desbloqueado ? curso.orden : "🔒"}
+                    {completado ? "✔" : desbloqueado ? curso.orden : "🔒"}
                   </div>
 
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -409,15 +297,8 @@ export default function SetterCursosPage() {
                     )}
                   </div>
 
-                  <span
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 700,
-                      color: completado ? "#22C55E" : desbloqueado ? "#60A5FA" : "rgba(255,255,255,0.3)",
-                      whiteSpace: "nowrap",
-                    }}
-                  >
-                    {completado ? "✓ Completado" : desbloqueado ? "▶ Ver módulo" : "🔒 Bloqueado"}
+                  <span style={{ fontSize: 12, fontWeight: 700, color: completado ? "#22C55E" : desbloqueado ? "#60A5FA" : "rgba(255,255,255,0.3)", whiteSpace: "nowrap" }}>
+                    {completado ? "✔ Completado" : desbloqueado ? "▶ Ver módulo" : "🔒 Bloqueado"}
                   </span>
                 </div>
               );
