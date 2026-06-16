@@ -49,6 +49,18 @@ function SplashScreen({ onDone }: { onDone: () => void }) {
   );
 }
 
+function NavLinks() {
+  return (
+    <div className="nav-desktop" style={{alignItems:'center',gap:4}}>
+      {['Servicios','Proceso','Casos de Éxito','FAQ'].map(item=>(
+        <a key={item} href={`#${item.toLowerCase().replace(' ','-').replace('é','e')}`} style={{color:'rgba(255,255,255,0.55)',fontSize:'0.875rem',fontWeight:500,padding:'8px 14px',borderRadius:8,transition:'all 0.2s',fontFamily:'DM Sans,sans-serif',textDecoration:'none'}}
+          onMouseEnter={e=>{(e.target as HTMLAnchorElement).style.color='#fff';(e.target as HTMLAnchorElement).style.background='rgba(255,255,255,0.06)'}}
+          onMouseLeave={e=>{(e.target as HTMLAnchorElement).style.color='rgba(255,255,255,0.55)';(e.target as HTMLAnchorElement).style.background='transparent'}}>{item}</a>
+      ))}
+    </div>
+  );
+}
+
 function Navbar() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -59,6 +71,16 @@ function Navbar() {
   }, []);
   return (
     <nav style={{position:'fixed',top:0,left:0,right:0,zIndex:50,transition:'all 0.5s ease',background:scrolled?'rgba(5,8,20,0.92)':'transparent',backdropFilter:scrolled?'blur(20px)':'none',borderBottom:scrolled?'1px solid rgba(255,255,255,0.05)':'none',padding:'0 24px'}}>
+      <style>{`
+        .nav-hamburger { display: block; }
+        .nav-desktop { display: none; }
+        .nav-login-btn { display: none; }
+        @media (min-width: 768px) {
+          .nav-hamburger { display: none !important; }
+          .nav-desktop { display: flex !important; }
+          .nav-login-btn { display: inline-flex !important; }
+        }
+      `}</style>
       <div style={{maxWidth:1280,margin:'0 auto',height:72,display:'flex',alignItems:'center',justifyContent:'space-between'}}>
         <div style={{display:'flex',alignItems:'center',gap:10}}>
           <div style={{width:34,height:34,borderRadius:10,background:'linear-gradient(135deg,#1A3A8F,#2563EB)',display:'flex',alignItems:'center',justifyContent:'center'}}>
@@ -66,23 +88,17 @@ function Navbar() {
           </div>
           <span style={{fontFamily:'Syne,sans-serif',fontWeight:800,fontSize:20,color:'#fff',letterSpacing:'-0.01em'}}>Crece<span style={{color:'#22C55E'}}>Con</span></span>
         </div>
-        <div style={{display:'flex',alignItems:'center',gap:4}} className="hidden md:flex">
-          {['Servicios','Proceso','Casos de Éxito','FAQ'].map(item=>(
-            <a key={item} href={`#${item.toLowerCase().replace(' ','-').replace('é','e')}`} style={{color:'rgba(255,255,255,0.55)',fontSize:'0.875rem',fontWeight:500,padding:'8px 14px',borderRadius:8,transition:'all 0.2s',fontFamily:'DM Sans,sans-serif',textDecoration:'none'}}
-              onMouseEnter={e=>{(e.target as HTMLAnchorElement).style.color='#fff';(e.target as HTMLAnchorElement).style.background='rgba(255,255,255,0.06)'}}
-              onMouseLeave={e=>{(e.target as HTMLAnchorElement).style.color='rgba(255,255,255,0.55)';(e.target as HTMLAnchorElement).style.background='transparent'}}>{item}</a>
-          ))}
-        </div>
+        <NavLinks />
         <div style={{display:'flex',alignItems:'center',gap:10}}>
-          <Link href="/login" className="btn-outline hidden md:inline-flex" style={{fontSize:'0.85rem',padding:'9px 18px'}}>Iniciar sesión</Link>
+          <Link href="/login" className="nav-login-btn btn-outline" style={{fontSize:'0.85rem',padding:'9px 18px'}}>Iniciar sesión</Link>
           <a href="#contacto" className="btn-primary" style={{fontSize:'0.85rem',padding:'9px 18px'}}>Empezar ahora</a>
-          <button className="md:hidden" onClick={()=>setMenuOpen(!menuOpen)} style={{color:'rgba(255,255,255,0.7)',background:'none',border:'none',cursor:'pointer',fontSize:'1.4rem',padding:'4px'}}>{menuOpen?'✕':'☰'}</button>
+          <button className="nav-hamburger" onClick={()=>setMenuOpen(!menuOpen)} style={{color:'rgba(255,255,255,0.7)',background:'none',border:'none',cursor:'pointer',fontSize:'1.4rem',padding:'4px'}}>{menuOpen?'✕':'☰'}</button>
         </div>
       </div>
       {menuOpen&&(
         <div style={{background:'rgba(5,8,20,0.98)',backdropFilter:'blur(20px)',borderTop:'1px solid rgba(255,255,255,0.05)',padding:'16px 24px 24px'}}>
           {['Servicios','Proceso','Casos de Éxito','FAQ'].map(item=>(
-            <a key={item} href={`#${item.toLowerCase()}`} onClick={()=>setMenuOpen(false)} style={{display:'block',color:'rgba(255,255,255,0.7)',padding:'12px 0',borderBottom:'1px solid rgba(255,255,255,0.04)',fontFamily:'DM Sans,sans-serif',textDecoration:'none',fontSize:'0.95rem'}}>{item}</a>
+            <a key={item} href={`#${item.toLowerCase().replace(' ','-').replace('é','e')}`} onClick={()=>setMenuOpen(false)} style={{display:'block',color:'rgba(255,255,255,0.7)',padding:'12px 0',borderBottom:'1px solid rgba(255,255,255,0.04)',fontFamily:'DM Sans,sans-serif',textDecoration:'none',fontSize:'0.95rem'}}>{item}</a>
           ))}
           <Link href="/login" style={{display:'block',color:'#60A5FA',padding:'12px 0',fontFamily:'DM Sans,sans-serif',textDecoration:'none'}}>Iniciar sesión →</Link>
         </div>
@@ -396,4 +412,3 @@ export default function HomePage() {
     </>
   );
 }
-
