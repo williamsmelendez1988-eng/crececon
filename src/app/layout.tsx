@@ -8,7 +8,6 @@ const syne = Syne({
   variable: '--font-syne',
   weight: ['400', '500', '600', '700', '800'],
 });
-
 const dmSans = DM_Sans({
   subsets: ['latin'],
   variable: '--font-dm',
@@ -32,6 +31,17 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" className="dark">
+      <head>
+        <script dangerouslySetInnerHTML={{__html: `
+          document.addEventListener('contextmenu', function(e) { e.preventDefault(); });
+          document.addEventListener('keydown', function(e) {
+            if (e.key === 'F12') { e.preventDefault(); }
+            if (e.ctrlKey && e.shiftKey && (e.key === 'I' || e.key === 'J' || e.key === 'C')) { e.preventDefault(); }
+            if (e.ctrlKey && e.key === 'u') { e.preventDefault(); }
+            if (e.ctrlKey && e.key === 's') { e.preventDefault(); }
+          });
+        `}} />
+      </head>
       <body className={`${syne.variable} ${dmSans.variable} font-dm bg-[#050508] text-white antialiased`}>
         <AuthProvider>
           {children}
